@@ -1,0 +1,56 @@
+{
+  "name": "ownkey",
+  "version": "0.2.0",
+  "description": "Local-first AI coding agent CLI for codebase analysis and intelligent suggestions",
+  "main": "dist/index.js",
+  "bin": {
+    "ownkey": "dist/index.js"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "vitest",
+    "test:unit": "vitest run --dir tests/unit",
+    "test:integration": "vitest run --dir tests/integration",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "ai",
+    "coding-agent",
+    "cli",
+    "code-analysis",
+    "refactoring",
+    "bug-detection",
+    "llm",
+    "developer-tools"
+  ],
+  "author": "OwnKey Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "drizzle-orm": "^0.36.4",
+    "postgres": "^3.4.5",
+    "chalk": "^5.3.0",
+    "ora": "^8.1.1",
+    "inquirer": "^12.2.0",
+    "ignore": "^6.0.2",
+    "diff": "^7.0.0",
+    "keytar": "^7.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/diff": "^6.0.0",
+    "typescript": "^5.7.3",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "drizzle-kit": "^0.30.1"
+  }
+}
