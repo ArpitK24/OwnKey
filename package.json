@@ -1,6 +1,6 @@
 {
   "name": "ownkey",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local-first AI coding agent CLI for codebase analysis and intelligent suggestions",
   "main": "dist/index.js",
   "bin": {
@@ -17,6 +17,14 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run build"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ArpitK24/OwnKey.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ArpitK24/OwnKey/issues"
+  },
+  "homepage": "https://github.com/ArpitK24/OwnKey#readme",
   "keywords": [
     "ai",
     "coding-agent",
