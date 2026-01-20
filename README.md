@@ -1,9 +1,22 @@
-# OwnKey CLI
+<div align="center">
 
-**Local-first AI coding agent with Google Gemini integration**
+<img src="assets/logo.png" alt="OwnKey Logo" width="600"/>
+
+# OwnKey
+
+**Privacy-First AI Coding Agent**
 
 [![npm version](https://badge.fury.io/js/ownkey.svg)](https://www.npmjs.com/package/ownkey)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://img.shields.io/npm/dm/ownkey.svg)](https://www.npmjs.com/package/ownkey)
+
+*Intelligent code analysis powered by Google Gemini 2.5 • Your code never leaves your machine*
+
+[Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Documentation](#-commands)
+
+</div>
+
+---
 
 > ⚠️ **v0.5.0** - Currently supports Google Gemini. OpenAI, Anthropic, and Ollama coming soon!
 
@@ -14,32 +27,57 @@
 npm install -g ownkey
 
 # Configure with your Gemini API key
-ownkey config
+ownkey config --provider gemini --api-key YOUR_KEY
 
-# Scan your project
-ownkey scan .
-
-# Get AI-powered suggestions
+# Analyze your codebase
 ownkey suggest .
 ```
 
-## 📋 Features
+**Get your free Gemini API key:** [Google AI Studio](https://aistudio.google.com/app/apikey)
 
-- **🤖 AI-Powered Analysis**: Intelligent code review using Google Gemini 2.5
-- **🔒 Privacy-First**: Your code never leaves your machine
-- **💾 Database Integration**: Optional Supabase for history tracking
-- **🔐 Secure Storage**: API keys stored in OS keychain or encrypted
-- **📂 Smart Scanning**: Respects .gitignore and custom ignore patterns
-- **🎯 Multi-Model Support**: Use any Gemini model (pro, flash, flash-lite)
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🤖 AI-Powered Analysis
+Intelligent code review using Google Gemini 2.5 Pro
+
+### 🔒 Privacy-First
+Your code never leaves your machine - all analysis is local
+
+### 💾 Optional Cloud Sync
+Store history in your own Supabase database
+
+</td>
+<td width="50%">
+
+### 🔐 Secure Storage
+API keys stored in OS keychain or encrypted
+
+### 📂 Smart Scanning
+Respects .gitignore and custom patterns
+
+### 🎯 Multi-Model Support
+Use any Gemini model (pro, flash, flash-lite)
+
+</td>
+</tr>
+</table>
 
 ## ⚡ AI Provider Support
 
-| Provider | Status | Models |
-|----------|--------|--------|
-| **Google Gemini** | ✅ **Fully Supported** | gemini-2.5-pro, gemini-2.5-flash, gemini-2.5-flash-lite |
-| **OpenAI** | 🔜 Coming in v0.6.0 | GPT-4, GPT-3.5 |
-| **Anthropic** | 🔜 Coming in v0.7.0 | Claude 3.5, Claude 3 |
-| **Ollama (Local)** | 🔜 Coming in v0.8.0 | Any local model |
+<div align="center">
+
+| Provider | Status | Models | ETA |
+|:--------:|:------:|:------:|:---:|
+| **🟢 Google Gemini** | ✅ **Available Now** | gemini-2.5-pro, gemini-2.5-flash | - |
+| **🔵 OpenAI** | 🔜 Coming Soon | GPT-4, GPT-4 Turbo | v0.6.0 |
+| **🟣 Anthropic** | 🔜 Coming Soon | Claude 3.5 Sonnet | v0.7.0 |
+| **🟠 Ollama** | 🔜 Coming Soon | Any local model | v0.8.0 |
+
+</div>
 
 ## 🛠 Installation
 
