@@ -2,7 +2,7 @@
 
 export type LogLevel = 'quiet' | 'normal' | 'verbose' | 'debug';
 
-export type AIProvider = 'openai' | 'anthropic' | 'ollama';
+export type AIProvider = 'openai' | 'anthropic' | 'gemini' | 'ollama';
 
 export type SuggestionType =
     | 'bug'
@@ -29,6 +29,9 @@ export interface Config {
             model?: string;
         };
         anthropic?: {
+            model?: string;
+        };
+        gemini?: {
             model?: string;
         };
         ollama?: {

@@ -33,11 +33,16 @@ export class DatabaseClient {
                 return;
             }
 
-            // Create connection string
-            const connectionString = `${config.supabaseUrl}?sslmode=require`;
+            // Extract database details from Supabase URL
+            // Format: https://PROJECT_REF.supabase.co
+            const supabaseUrl = new URL(config.supabaseUrl);
+            const projectRef = supabaseUrl.hostname.split('.')[0];
+
+            // Construct PostgreSQL connection string
+            // Format: postgresql://postgres:PASSWORD@db.PROJECT_REF.supabase.co:5432/postgres
+            const connectionString = `postgresql://postgres:${config.supabaseServiceRoleKey}@db.${projectRef}.supabase.co:5432/postgres`;
 
             this.sql = postgres(connectionString, {
-                password: config.supabaseServiceRoleKey,
                 max: 10,
                 idle_timeout: 20,
                 connect_timeout: 10,
@@ -53,7 +58,11 @@ export class DatabaseClient {
             await this.runMigrations();
         } catch (error) {
             logger.warn('Failed to connect to database. Running in local-only mode.');
-            logger.debug('Database error:', error);
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            logger.error(`Database error details: ${errorMessage}`);
+            if (error instanceof Error && error.stack) {
+                logger.debug('Stack trace:', error.stack);
+            }
             this.isLocalOnly = true;
             this.sql = null;
             this.db = null;
@@ -96,14 +105,18 @@ export class DatabaseClient {
             logger.verbose('Checking database migrations...');
 
             // Check if migrations table exists
-            const tableExists = await this.sql`
-        SELECT EXISTS (
-          SELECT FROM information_schema.tables 
-          WHERE table_name = 'schema_migrations'
-        );
-      `;
+            const tableCheck = await this.sql`
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public'
+                    AND table_name = 'schema_migrations'
+                ) as exists;
+            `;
 
-            if (!tableExists[0]?.exists) {
+            const tableExists = tableCheck[0]?.exists === true;
+            logger.debug(`schema_migrations table exists: ${tableExists}`);
+
+            if (!tableExists) {
                 logger.info('Initializing database schema...');
                 await this.runMigration(1);
                 logger.success('Database schema initialized');
@@ -111,11 +124,11 @@ export class DatabaseClient {
             }
 
             // Check current version
-            const currentVersion = await this.sql`
-        SELECT MAX(version) as version FROM schema_migrations;
-      `;
+            const versionCheck = await this.sql`
+                SELECT MAX(version) as version FROM schema_migrations;
+            `;
 
-            const version = currentVersion[0]?.version || 0;
+            const version = versionCheck[0]?.version || 0;
             logger.verbose(`Current schema version: ${version}`);
 
             // Run pending migrations
@@ -125,8 +138,15 @@ export class DatabaseClient {
                     await this.runMigration(v);
                     logger.success(`Applied migration ${v}`);
                 }
+            } else {
+                logger.verbose('Database schema is up to date');
             }
         } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            logger.error(`Migration error: ${errorMsg}`);
+            if (error instanceof Error && error.stack) {
+                logger.debug(`Migration stack: ${error.stack}`);
+            }
             throw new DatabaseError('Failed to run migrations', error);
         }
     }
@@ -137,12 +157,19 @@ export class DatabaseClient {
         }
 
         const migrationFile = join(__dirname, 'migrations', `${String(version).padStart(3, '0')}_init.sql`);
+        logger.verbose(`Running migration file: ${migrationFile}`);
 
         try {
             const migrationSql = await readFile(migrationFile, 'utf-8');
+            logger.debug(`Migration SQL length: ${migrationSql.length} characters`);
             await this.sql.unsafe(migrationSql);
             logger.verbose(`Migration ${version} applied successfully`);
         } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : String(error);
+            logger.error(`Migration ${version} failed: ${errorMsg}`);
+            if (error instanceof Error && error.stack) {
+                logger.debug(`Migration ${version} stack: ${error.stack}`);
+            }
             throw new DatabaseError(`Failed to apply migration ${version}`, error);
         }
     }

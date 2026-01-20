@@ -1,0 +1,42 @@
+# Source files
+src/
+tsconfig.json
+.prettierrc
+
+# Tests
+tests/
+*.test.ts
+*.spec.ts
+
+# Development
+.vscode/
+.idea/
+*.log
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# Documentation (keep README.md and LICENSE)
+docs/
+*.md
+!README.md
+!LICENSE
+
+# User config (never publish)
+.ownkey/
+*.env
+*.env.*
+
+# Build artifacts (will be in dist/)
+node_modules/
+
+# Temporary
+tmp/
+temp/
+*.tmp

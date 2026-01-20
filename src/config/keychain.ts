@@ -102,6 +102,17 @@ export class KeychainManager {
 
     private async loadKeysFromFile(): Promise<Record<string, string>> {
         if (!existsSync(this.keysFilePath)) {
+            // Try plain JSON file for testing
+            const plainPath = this.keysFilePath.replace('.enc', '.json');
+            if (existsSync(plainPath)) {
+                try {
+                    const content = await readFile(plainPath, 'utf-8');
+                    return JSON.parse(content);
+                } catch (error) {
+                    logger.warn('Failed to read plain keys file');
+                    return {};
+                }
+            }
             return {};
         }
 

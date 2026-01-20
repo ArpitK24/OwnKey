@@ -119,6 +119,7 @@ async function runInteractiveWizard(): Promise<void> {
             choices: [
                 { name: 'OpenAI (GPT-4)', value: 'openai' },
                 { name: 'Anthropic (Claude)', value: 'anthropic' },
+                { name: 'Google Gemini', value: 'gemini' },
                 { name: 'Ollama (Local)', value: 'ollama' },
             ],
         },
@@ -126,11 +127,14 @@ async function runInteractiveWizard(): Promise<void> {
 
     // Get API key (not needed for Ollama)
     if (provider !== 'ollama') {
+        const providerName =
+            provider === 'openai' ? 'OpenAI' : provider === 'anthropic' ? 'Anthropic' : 'Google Gemini';
+
         const { apiKey } = await inquirer.prompt([
             {
                 type: 'password',
                 name: 'apiKey',
-                message: `${provider === 'openai' ? 'OpenAI' : 'Anthropic'} API Key:`,
+                message: `${providerName} API Key:`,
                 validate: (input) => (input ? true : 'API key is required'),
             },
         ]);

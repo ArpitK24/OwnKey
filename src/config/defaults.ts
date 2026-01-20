@@ -6,11 +6,14 @@ export const DEFAULT_CONFIG: Config = {
             model: 'gpt-4-turbo',
         },
         anthropic: {
-            model: 'claude-3-sonnet-20240229',
+            model: 'claude-3-5-sonnet-20241022',
+        },
+        gemini: {
+            model: 'gemini-2.5-pro',
         },
         ollama: {
             endpoint: 'http://localhost:11434',
-            model: 'codellama',
+            model: 'deepseek-coder:latest',
         },
     },
     defaults: {

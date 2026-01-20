@@ -1,7 +1,7 @@
 {
   "name": "ownkey",
-  "version": "0.2.1",
-  "description": "Local-first AI coding agent CLI for codebase analysis and intelligent suggestions",
+  "version": "0.5.0",
+  "description": "Local-first AI coding agent with Google Gemini integration for intelligent codebase analysis",
   "main": "dist/index.js",
   "bin": {
     "ownkey": "dist/index.js"
@@ -16,6 +16,14 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "repository": {
     "type": "git",
