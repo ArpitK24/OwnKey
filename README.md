@@ -10,7 +10,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://img.shields.io/npm/dm/ownkey.svg)](https://www.npmjs.com/package/ownkey)
 
-*Intelligent code analysis powered by Google Gemini 2.5 • Your code never leaves your machine*
+*Intelligent code analysis powered by OpenAI, Anthropic Claude 4.5, and Google Gemini • Your code never leaves your machine*
 
 [Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Documentation](#-commands)
 
@@ -18,7 +18,7 @@
 
 ---
 
-> ⚠️ **v0.5.0** - Currently supports Google Gemini. OpenAI, Anthropic, and Ollama coming soon!
+> ✨ **v0.6.0** - Multi-provider support! Choose between OpenAI, Anthropic Claude 4.5, and Google Gemini.
 
 ## 🚀 Quick Start
 
@@ -26,14 +26,21 @@
 # Install globally
 npm install -g ownkey
 
-# Configure with your Gemini API key
-ownkey config --provider gemini --api-key YOUR_KEY
+# Configure with your preferred AI provider
+ownkey config --provider gemini --api-key YOUR_GEMINI_KEY
+# OR
+ownkey config --provider openai --api-key YOUR_OPENAI_KEY
+# OR
+ownkey config --provider anthropic --api-key YOUR_ANTHROPIC_KEY
 
 # Analyze your codebase
 ownkey suggest .
 ```
 
-**Get your free Gemini API key:** [Google AI Studio](https://aistudio.google.com/app/apikey)
+**Get API Keys:**
+- **Gemini:** [Google AI Studio](https://aistudio.google.com/app/apikey) (Free tier available)
+- **OpenAI:** [OpenAI Platform](https://platform.openai.com/api-keys)
+- **Anthropic:** [Anthropic Console](https://console.anthropic.com/)
 
 ## ✨ Features
 
@@ -41,8 +48,8 @@ ownkey suggest .
 <tr>
 <td width="50%">
 
-### 🤖 AI-Powered Analysis
-Intelligent code review using Google Gemini 2.5 Pro
+### 🤖 Multi-Provider AI
+Choose between OpenAI, Claude 4.5, or Gemini
 
 ### 🔒 Privacy-First
 Your code never leaves your machine - all analysis is local
@@ -59,8 +66,8 @@ API keys stored in OS keychain or encrypted
 ### 📂 Smart Scanning
 Respects .gitignore and custom patterns
 
-### 🎯 Multi-Model Support
-Use any Gemini model (pro, flash, flash-lite)
+### 🎯 15+ AI Models
+GPT-4, Claude Opus 4.5, Gemini 2.5, and more
 
 </td>
 </tr>
@@ -70,12 +77,14 @@ Use any Gemini model (pro, flash, flash-lite)
 
 <div align="center">
 
-| Provider | Status | Models | ETA |
-|:--------:|:------:|:------:|:---:|
-| **🟢 Google Gemini** | ✅ **Available Now** | gemini-2.5-pro, gemini-2.5-flash | - |
-| **🔵 OpenAI** | 🔜 Coming Soon | GPT-4, GPT-4 Turbo | v0.6.0 |
-| **🟣 Anthropic** | 🔜 Coming Soon | Claude 3.5 Sonnet | v0.7.0 |
-| **🟠 Ollama** | 🔜 Coming Soon | Any local model | v0.8.0 |
+| Provider | Status | Models | Get API Key |
+|:--------:|:------:|:------:|:-----------:|
+| **🟢 Google Gemini** | ✅ **Available** | Gemini 2.5 Pro, Flash, 2.0 | [Get Key](https://aistudio.google.com/app/apikey) |
+| **🔵 OpenAI** | ✅ **Available** | GPT-4 Turbo, GPT-4, GPT-3.5 | [Get Key](https://platform.openai.com/api-keys) |
+| **🟣 Anthropic** | ✅ **Available** | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 | [Get Key](https://console.anthropic.com/) |
+| **🟠 Ollama** | 🔜 Coming Soon | Any local model | v0.7.0 |
+
+**New in v0.6.0:** Multi-provider support with 15+ AI models!
 
 </div>
 

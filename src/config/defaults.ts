@@ -6,7 +6,7 @@ export const DEFAULT_CONFIG: Config = {
             model: 'gpt-4-turbo',
         },
         anthropic: {
-            model: 'claude-3-5-sonnet-20241022',
+            model: 'claude-opus-4-5-20251101',
         },
         gemini: {
             model: 'gemini-2.5-pro',

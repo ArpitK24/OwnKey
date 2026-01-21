@@ -114,8 +114,36 @@ export class GeminiProvider extends AIProvider {
     /**
      * Get available Gemini models
      */
-    static getAvailableModels(): string[] {
-        return ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+    static async getAvailableModels(apiKey: string): Promise<string[]> {
+        try {
+            const response = await fetch(
+                'https://generativelanguage.googleapis.com/v1/models',
+                {
+                    headers: {
+                        'x-goog-api-key': apiKey,
+                    },
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch models: ${response.statusText}`);
+            }
+
+            const data = await response.json() as any;
+
+            // Filter for models that support generateContent
+            const models = data.models
+                .filter((m: any) =>
+                    m.supportedGenerationMethods?.includes('generateContent') &&
+                    m.name.includes('gemini')
+                )
+                .map((m: any) => m.name.replace('models/', ''));
+
+            return models.length > 0 ? models : ['gemini-2.5-pro', 'gemini-2.5-flash'];
+        } catch (error) {
+            logger.error('Failed to fetch Gemini models:', error as Error);
+            return ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+        }
     }
 
     /**

@@ -1,5 +1,7 @@
 import { AIProvider } from './provider.js';
 import { GeminiProvider } from './gemini.js';
+import { OpenAIProvider } from './openai.js';
+import { AnthropicProvider } from './anthropic.js';
 import { ConfigError } from '../types/index.js';
 import { configManager } from '../config/manager.js';
 import { logger } from '../utils/logger.js';
@@ -32,13 +34,21 @@ export class AIProviderFactory {
                 return new GeminiProvider(apiKey, geminiModel);
 
             case 'openai':
-                throw new ConfigError('OpenAI provider not yet implemented (coming soon)');
+                if (!apiKey) {
+                    throw new ConfigError('OpenAI API key not found. Run: ownkey config');
+                }
+                const openaiModel = config.providers.openai?.model || 'gpt-4-turbo';
+                return new OpenAIProvider(apiKey, openaiModel);
 
             case 'anthropic':
-                throw new ConfigError('Anthropic provider not yet implemented (coming soon)');
+                if (!apiKey) {
+                    throw new ConfigError('Anthropic API key not found. Run: ownkey config');
+                }
+                const anthropicModel = config.providers.anthropic?.model || 'claude-opus-4-5-20251101';
+                return new AnthropicProvider(apiKey, anthropicModel);
 
             case 'ollama':
-                throw new ConfigError('Ollama provider not yet implemented (coming soon)');
+                throw new ConfigError('Ollama provider not yet implemented (coming in v0.7.0)');
 
             default:
                 throw new ConfigError(`Unknown provider: ${provider}`);
@@ -74,7 +84,7 @@ export class AIProviderFactory {
             case 'openai':
                 return 'gpt-4-turbo';
             case 'anthropic':
-                return 'claude-3-5-sonnet-20241022';
+                return 'claude-opus-4-5-20251101';
             case 'ollama':
                 return 'deepseek-coder:latest';
             default:
@@ -85,22 +95,23 @@ export class AIProviderFactory {
     /**
      * Get available models for a provider
      */
-    static getAvailableModels(provider: string): string[] {
-        switch (provider) {
-            case 'gemini':
-                return GeminiProvider.getAvailableModels();
-            case 'openai':
-                return ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'];
-            case 'anthropic':
-                return [
-                    'claude-3-5-sonnet-20241022',
-                    'claude-3-opus-20240229',
-                    'claude-3-haiku-20240307',
-                ];
-            case 'ollama':
-                return ['deepseek-coder:latest', 'codellama:latest', 'llama2:latest'];
-            default:
-                return [];
+    static async getAvailableModels(provider: string, apiKey: string): Promise<string[]> {
+        try {
+            switch (provider) {
+                case 'gemini':
+                    return await GeminiProvider.getAvailableModels(apiKey);
+                case 'openai':
+                    return await OpenAIProvider.getAvailableModels(apiKey);
+                case 'anthropic':
+                    return await AnthropicProvider.getAvailableModels(apiKey);
+                case 'ollama':
+                    return ['deepseek-coder:latest', 'codellama:latest', 'llama2:latest'];
+                default:
+                    return [];
+            }
+        } catch (error) {
+            logger.error(`Failed to fetch models for ${provider}:`, error as Error);
+            return [AIProviderFactory.getRecommendedModel(provider)];
         }
     }
 }
