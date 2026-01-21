@@ -17,7 +17,7 @@ const program = new Command();
 program
     .name('ownkey')
     .description('Local-first AI coding agent for intelligent codebase analysis')
-    .version('0.2.0');
+    .version('0.5.1');
 
 // Global options
 program.option('--local-only', 'Run without database persistence');
