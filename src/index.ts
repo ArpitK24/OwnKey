@@ -11,13 +11,14 @@ import { configCommand } from './commands/config.js';
 import { scanCommand } from './commands/scan.js';
 import { suggestCommand } from './commands/suggest.js';
 import { applyCommand } from './commands/apply.js';
+import { undoCommand } from './commands/undo.js';
 
 const program = new Command();
 
 program
     .name('ownkey')
     .description('Local-first AI coding agent for intelligent codebase analysis')
-    .version('0.5.1');
+    .version('0.7.0');
 
 // Global options
 program.option('--local-only', 'Run without database persistence');
@@ -30,6 +31,7 @@ program.addCommand(configCommand);
 program.addCommand(scanCommand);
 program.addCommand(suggestCommand);
 program.addCommand(applyCommand);
+program.addCommand(undoCommand);
 
 // Pre-parse hook to set up logging and check config
 program.hook('preAction', async (thisCommand) => {

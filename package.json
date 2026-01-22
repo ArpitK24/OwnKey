@@ -1,6 +1,6 @@
 {
   "name": "ownkey",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Local-first AI coding agent with Google Gemini integration for intelligent codebase analysis",
   "main": "dist/index.js",
   "bin": {

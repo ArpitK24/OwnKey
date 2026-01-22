@@ -18,7 +18,7 @@
 
 ---
 
-> ✨ **v0.6.0** - Multi-provider support! Choose between OpenAI, Anthropic Claude 4.5, and Google Gemini.
+> ✨ **v0.7.0** - Apply System! Auto-fix code with AI suggestions, automatic backups, and rollback support.
 
 ## 🚀 Quick Start
 
@@ -35,6 +35,9 @@ ownkey config --provider anthropic --api-key YOUR_ANTHROPIC_KEY
 
 # Analyze your codebase
 ownkey suggest .
+
+# Apply AI suggestions to fix code
+ownkey apply <suggestion-id>
 ```
 
 **Get API Keys:**
@@ -57,6 +60,9 @@ Your code never leaves your machine - all analysis is local
 ### 💾 Optional Cloud Sync
 Store history in your own Supabase database
 
+### 🔧 Auto-Fix Code
+Apply AI suggestions with automatic backups
+
 </td>
 <td width="50%">
 
@@ -68,6 +74,9 @@ Respects .gitignore and custom patterns
 
 ### 🎯 15+ AI Models
 GPT-4, Claude Opus 4.5, Gemini 2.5, and more
+
+### ↩️ Rollback Support
+Undo any applied changes instantly
 
 </td>
 </tr>
@@ -82,9 +91,9 @@ GPT-4, Claude Opus 4.5, Gemini 2.5, and more
 | **🟢 Google Gemini** | ✅ **Available** | Gemini 2.5 Pro, Flash, 2.0 | [Get Key](https://aistudio.google.com/app/apikey) |
 | **🔵 OpenAI** | ✅ **Available** | GPT-4 Turbo, GPT-4, GPT-3.5 | [Get Key](https://platform.openai.com/api-keys) |
 | **🟣 Anthropic** | ✅ **Available** | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 | [Get Key](https://console.anthropic.com/) |
-| **🟠 Ollama** | 🔜 Coming Soon | Any local model | v0.7.0 |
+| **🟠 Ollama** | 🔜 Coming Soon | Any local model | v0.8.0 |
 
-**New in v0.6.0:** Multi-provider support with 15+ AI models!
+**New in v0.7.0:** Apply System with automatic backups and rollback!
 
 </div>
 
@@ -179,6 +188,35 @@ ownkey suggest --local-only      # Skip database storage
 
 ✨ Analysis Complete!
   Total suggestions: 12
+```
+
+### `ownkey apply <suggestion-id>` *(New in v0.7.0)*
+
+Apply an AI-generated suggestion to your code with automatic backups.
+
+```bash
+ownkey apply abc123                # Interactive mode (default)
+ownkey apply abc123 --auto         # Auto-apply without confirmation
+ownkey apply abc123 --dry-run      # Preview changes without applying
+ownkey apply abc123 --force        # Apply even if validation fails
+ownkey apply abc123 --no-backup    # Skip backup (not recommended)
+```
+
+**Features:**
+- ✅ Automatic backups before applying
+- ✅ Interactive confirmation with diff preview
+- ✅ Validation to prevent conflicts
+- ✅ Automatic rollback on failure
+
+### `ownkey undo [backup-id]` *(New in v0.7.0)*
+
+Undo a previously applied suggestion and restore from backup.
+
+```bash
+ownkey undo                        # Interactive - choose from list
+ownkey undo abc123                 # Undo specific backup
+ownkey undo --list                 # List recent applies
+ownkey undo --all                  # Undo all applies from today
 ```
 
 ### `ownkey apply <id>` *(Coming in v0.7.0)*

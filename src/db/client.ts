@@ -96,6 +96,10 @@ export class DatabaseClient {
         return this.isLocalOnly;
     }
 
+    getClient(): ReturnType<typeof postgres> | null {
+        return this.sql;
+    }
+
     private async runMigrations(): Promise<void> {
         if (!this.sql) {
             return;
