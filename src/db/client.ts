@@ -70,11 +70,16 @@ export class DatabaseClient {
     }
 
     async disconnect(): Promise<void> {
-        if (this.sql) {
-            await this.sql.end();
-            this.sql = null;
-            this.db = null;
-            logger.verbose('Database connection closed');
+        try {
+            if (this.sql) {
+                await this.sql.end();
+                this.sql = null;
+                this.db = null;
+                logger.verbose('Database connection closed');
+            }
+        } catch (error) {
+            // Ignore errors during disconnect
+            logger.verbose(`Error during disconnect: ${(error as Error).message}`);
         }
     }
 

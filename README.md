@@ -10,148 +10,72 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Downloads](https://img.shields.io/npm/dm/ownkey.svg)](https://www.npmjs.com/package/ownkey)
 
-*Intelligent code analysis powered by OpenAI, Anthropic Claude 4.5, and Google Gemini • Your code never leaves your machine*
+*Intelligent code analysis powered by AI • Your code never leaves your machine*
 
-[Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Documentation](#-commands)
+[Quick Start](#-quick-start) • [Features](#-features) • [Installation](#-installation) • [Commands](#-commands)
 
 </div>
 
 ---
 
-> ✨ **v0.7.0** - Apply System! Auto-fix code with AI suggestions, automatic backups, and rollback support.
+> ✨ **v0.8.0** - Now with Ollama! Run completely offline with local LLMs.
 
 ## 🚀 Quick Start
 
 ```bash
-# Install globally
+# Install
 npm install -g ownkey
 
-# Configure with your preferred AI provider
-ownkey config --provider gemini --api-key YOUR_GEMINI_KEY
-# OR
-ownkey config --provider openai --api-key YOUR_OPENAI_KEY
-# OR
-ownkey config --provider anthropic --api-key YOUR_ANTHROPIC_KEY
+# Configure (choose your provider)
+ownkey config
 
-# Analyze your codebase
+# Analyze your code
 ownkey suggest .
 
-# Apply AI suggestions to fix code
+# Apply AI suggestions (auto-fix)
 ownkey apply <suggestion-id>
 ```
 
-**Get API Keys:**
-- **Gemini:** [Google AI Studio](https://aistudio.google.com/app/apikey) (Free tier available)
-- **OpenAI:** [OpenAI Platform](https://platform.openai.com/api-keys)
-- **Anthropic:** [Anthropic Console](https://console.anthropic.com/)
-
 ## ✨ Features
 
-<table>
-<tr>
-<td width="50%">
+- 🤖 **4 AI Providers** - Google Gemini, OpenAI, Anthropic Claude, Ollama
+- 🔒 **Privacy-First** - Your code never leaves your machine
+- 🏠 **Offline Mode** - Use Ollama for 100% local analysis
+- 🔧 **Auto-Fix** - Apply AI suggestions with automatic backups
+- ↩️ **Rollback** - Undo any changes instantly
+- 💾 **Optional Cloud Sync** - Store history in your own Supabase database
+- 🔐 **Secure** - API keys stored in OS keychain or encrypted
+- 📂 **Smart Scanning** - Respects .gitignore and custom patterns
 
-### 🤖 Multi-Provider AI
-Choose between OpenAI, Claude 4.5, or Gemini
-
-### 🔒 Privacy-First
-Your code never leaves your machine - all analysis is local
-
-### 💾 Optional Cloud Sync
-Store history in your own Supabase database
-
-### 🔧 Auto-Fix Code
-Apply AI suggestions with automatic backups
-
-</td>
-<td width="50%">
-
-### 🔐 Secure Storage
-API keys stored in OS keychain or encrypted
-
-### 📂 Smart Scanning
-Respects .gitignore and custom patterns
-
-### 🎯 15+ AI Models
-GPT-4, Claude Opus 4.5, Gemini 2.5, and more
-
-### ↩️ Rollback Support
-Undo any applied changes instantly
-
-</td>
-</tr>
-</table>
-
-## ⚡ AI Provider Support
+## ⚡ AI Providers
 
 <div align="center">
 
-| Provider | Status | Models | Get API Key |
-|:--------:|:------:|:------:|:-----------:|
-| **🟢 Google Gemini** | ✅ **Available** | Gemini 2.5 Pro, Flash, 2.0 | [Get Key](https://aistudio.google.com/app/apikey) |
-| **🔵 OpenAI** | ✅ **Available** | GPT-4 Turbo, GPT-4, GPT-3.5 | [Get Key](https://platform.openai.com/api-keys) |
-| **🟣 Anthropic** | ✅ **Available** | Claude Opus 4.5, Sonnet 4.5, Haiku 4.5 | [Get Key](https://console.anthropic.com/) |
-| **🟠 Ollama** | 🔜 Coming Soon | Any local model | v0.8.0 |
-
-**New in v0.7.0:** Apply System with automatic backups and rollback!
+| Provider | Status | Best For | API Key Required |
+|:--------:|:------:|:--------:|:----------------:|
+| **🟢 Google Gemini** | ✅ Available | Fast & accurate | [Get Key](https://aistudio.google.com/app/apikey) |
+| **🔵 OpenAI** | ✅ Available | GPT models | [Get Key](https://platform.openai.com/api-keys) |
+| **🟣 Anthropic Claude** | ✅ Available | Advanced reasoning | [Get Key](https://console.anthropic.com/) |
+| **🟠 Ollama** | ✅ Available | Offline & free | [Install Ollama](https://ollama.ai) |
 
 </div>
 
 ## 🛠 Installation
 
-### Via npm (Recommended)
-
 ```bash
 npm install -g ownkey
 ```
-
-### From Source
-
-```bash
-git clone https://github.com/ArpitK24/OwnKey.git
-cd ownkey-cli
-npm install
-npm run build
-npm link
-```
-
-## ⚙️ Configuration
-
-### Interactive Setup
-
-```bash
-ownkey config
-```
-
-### Using Flags
-
-```bash
-# Configure Gemini
-ownkey config --provider gemini --api-key YOUR_GEMINI_API_KEY
-
-# Optional: Configure Supabase for history tracking
-ownkey config --supabase-url https://xxx.supabase.co --supabase-key YOUR_KEY
-
-# Use different Gemini model
-ownkey config --provider gemini --model gemini-2.5-flash
-```
-
-### Getting a Gemini API Key
-
-1. Visit [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Create a new API key
-3. Run `ownkey config --provider gemini --api-key YOUR_KEY`
 
 ## 📖 Commands
 
 ### `ownkey config`
 
-Configure Supabase database and AI providers.
+Configure AI provider and database (optional).
 
 ```bash
 ownkey config                    # Interactive wizard
+ownkey config --provider gemini  # Set provider
 ownkey config --reset            # Reset to defaults
-ownkey config --provider gemini --api-key YOUR_KEY
 ```
 
 ### `ownkey scan [path]`
@@ -161,8 +85,6 @@ Scan a project directory.
 ```bash
 ownkey scan .                    # Scan current directory
 ownkey scan ./src                # Scan specific folder
-ownkey scan --max-file-size 1mb  # Custom file size limit
-ownkey scan --ignore "*.test.js" # Additional ignore patterns
 ```
 
 ### `ownkey suggest [path]`
@@ -171,122 +93,116 @@ Generate AI-powered code suggestions.
 
 ```bash
 ownkey suggest .                 # Analyze current directory
-ownkey suggest ./src             # Analyze specific folder
-ownkey suggest --max-files 20    # Limit files analyzed
 ownkey suggest --local-only      # Skip database storage
+ownkey suggest --max-files 20    # Limit files analyzed
 ```
 
-**Output:**
-```
-🔍 Analyzing code...
+### `ownkey apply <suggestion-id>`
 
-[1] bug (high) in src/auth.ts
-    Potential null pointer dereference
-
-[2] security (critical) in db/query.ts
-    SQL injection vulnerability detected
-
-✨ Analysis Complete!
-  Total suggestions: 12
-```
-
-### `ownkey apply <suggestion-id>` *(New in v0.7.0)*
-
-Apply an AI-generated suggestion to your code with automatic backups.
+Apply an AI-generated suggestion with automatic backup.
 
 ```bash
-ownkey apply abc123                # Interactive mode (default)
-ownkey apply abc123 --auto         # Auto-apply without confirmation
-ownkey apply abc123 --dry-run      # Preview changes without applying
-ownkey apply abc123 --force        # Apply even if validation fails
-ownkey apply abc123 --no-backup    # Skip backup (not recommended)
+ownkey apply abc123              # Interactive mode
+ownkey apply abc123 --auto       # Auto-apply
+ownkey apply abc123 --dry-run    # Preview only
 ```
 
-**Features:**
-- ✅ Automatic backups before applying
-- ✅ Interactive confirmation with diff preview
-- ✅ Validation to prevent conflicts
-- ✅ Automatic rollback on failure
+### `ownkey undo [backup-id]`
 
-### `ownkey undo [backup-id]` *(New in v0.7.0)*
-
-Undo a previously applied suggestion and restore from backup.
+Undo a previously applied suggestion.
 
 ```bash
-ownkey undo                        # Interactive - choose from list
-ownkey undo abc123                 # Undo specific backup
-ownkey undo --list                 # List recent applies
-ownkey undo --all                  # Undo all applies from today
+ownkey undo                      # Interactive - choose from list
+ownkey undo abc123               # Undo specific backup
+ownkey undo --list               # List recent applies
 ```
 
-### `ownkey apply <id>` *(Coming in v0.7.0)*
+## 🟠 Using Ollama (Offline Mode)
 
-Apply a suggestion to your code.
+Run OwnKey completely offline with local LLMs!
+
+### Setup
+
+1. **Install Ollama**
+   - Windows: Download from [ollama.ai](https://ollama.ai)
+   - macOS: `brew install ollama`
+   - Linux: `curl https://ollama.ai/install.sh | sh`
+
+2. **Pull a Model**
+   ```bash
+   ollama pull deepseek-coder  # Recommended for code
+   # OR
+   ollama pull codellama       # Alternative
+   ```
+
+3. **Configure OwnKey**
+   ```bash
+   ownkey config --provider ollama
+   ```
+
+4. **Use Offline**
+   ```bash
+   ownkey suggest .  # Works without internet!
+   ```
+
+### Recommended Models
+
+- **deepseek-coder** - Best for code analysis
+- **codellama** - Meta's code model
+- **llama3** - General purpose
+- **qwen-coder** - Alibaba's code model
+
+## 🔐 Security
+
+- API keys stored in OS keychain (macOS/Linux) or encrypted (Windows)
+- Code never sent to cloud (except when using cloud providers)
+- Ollama runs 100% locally
+- Optional database (your own Supabase instance)
+
+## 📊 What OwnKey Detects
+
+- 🐛 **Bugs** - Logic errors, off-by-one errors, null pointers
+- 🔒 **Security** - SQL injection, XSS, insecure dependencies
+- ⚡ **Performance** - Inefficient algorithms, memory leaks
+- ✅ **Tests** - Missing test coverage
+- 📝 **Documentation** - Missing comments, unclear code
+- 🎨 **Style** - Code quality improvements
+
+## 🌐 Database (Optional)
+
+OwnKey can store analysis history in your own Supabase database.
 
 ```bash
-ownkey apply abc123
-ownkey apply abc123 --no-backup
+ownkey config --supabase-url YOUR_URL --supabase-key YOUR_KEY
 ```
 
-## 🔒 Security
-
-- **API Keys**: Stored in OS keychain (macOS Keychain, Windows Credential Manager, Linux Secret Service)
-- **Fallback**: Encrypted local storage if keychain unavailable
-- **No Remote Storage**: Your source code is never uploaded to any server
-- **Supabase**: Optional, user-controlled database for history only
-
-## 🗂 Project Structure
-
-```
-~/.ownkey/
-├── config.json       # Configuration file
-├── keys.enc          # Encrypted API keys (fallback)
-└── logs/             # Log files
-```
-
-## 🧪 Development
+Or run in local-only mode:
 
 ```bash
-# Install dependencies
-npm install
-
-# Run in development mode
-npm run dev
-
-# Build
-npm run build
-
-# Run tests
-npm test
+ownkey suggest . --local-only
 ```
-
-## 📝 Roadmap
-
-- [x] v0.2.0 - CLI skeleton & configuration
-- [x] v0.3.0 - Config system with keychain
-- [x] v0.4.0 - File scanner
-- [x] **v0.5.0 - Gemini AI integration** ← Current
-- [ ] v0.6.0 - OpenAI & Anthropic providers
-- [ ] v0.7.0 - Apply/diff system
-- [ ] v0.8.0 - Ollama (local LLM) support
-- [ ] v0.9.0 - Testing & polish
-- [ ] v1.0.0 - Stable release
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions welcome! Please read our contributing guidelines.
 
 ## 📄 License
 
-MIT © 2026 OwnKey
+MIT License - see LICENSE file for details
 
 ## 🔗 Links
 
-- [GitHub Repository](https://github.com/ArpitK24/OwnKey)
-- [Issue Tracker](https://github.com/ArpitK24/OwnKey/issues)
-- [npm Package](https://www.npmjs.com/package/ownkey)
-- [Get Gemini API Key](https://aistudio.google.com/app/apikey)
+- [Documentation](https://ownkey.dev) *(coming soon)*
+- [GitHub](https://github.com/ArpitK24/OwnKey)
+- [npm](https://www.npmjs.com/package/ownkey)
+- [Issues](https://github.com/ArpitK24/OwnKey/issues)
 
 ---
 
-**Built with ❤️ for developers who value privacy and AI-powered productivity**
+<div align="center">
+
+Made with ❤️ by the OwnKey team
+
+**Privacy-first • AI-powered • Developer-friendly**
+
+</div>

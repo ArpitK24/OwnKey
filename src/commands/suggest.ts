@@ -152,9 +152,7 @@ export const suggestCommand = new Command('suggest')
             logger.error('Suggest failed', error as Error);
             process.exit(1);
         } finally {
-            // Close database connection to prevent UV handle errors
-            if (dbClient.isConnected()) {
-                await dbClient.disconnect();
-            }
+            // Always close database connection to prevent UV handle errors
+            await dbClient.disconnect();
         }
     });

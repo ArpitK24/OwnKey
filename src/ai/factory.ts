@@ -2,6 +2,7 @@ import { AIProvider } from './provider.js';
 import { GeminiProvider } from './gemini.js';
 import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
+import { OllamaProvider } from './ollama.js';
 import { ConfigError } from '../types/index.js';
 import { configManager } from '../config/manager.js';
 import { logger } from '../utils/logger.js';
@@ -48,7 +49,10 @@ export class AIProviderFactory {
                 return new AnthropicProvider(apiKey, anthropicModel);
 
             case 'ollama':
-                throw new ConfigError('Ollama provider not yet implemented (coming in v0.7.0)');
+                // Ollama doesn't require API key - runs locally
+                const ollamaModel = config.providers.ollama?.model || 'deepseek-coder:latest';
+                const ollamaBaseUrl = config.providers.ollama?.endpoint || 'http://localhost:11434';
+                return new OllamaProvider(undefined, ollamaModel, ollamaBaseUrl);
 
             default:
                 throw new ConfigError(`Unknown provider: ${provider}`);
