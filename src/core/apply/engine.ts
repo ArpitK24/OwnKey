@@ -169,27 +169,42 @@ export class ApplyEngine {
     }
 
     /**
-     * Load suggestion from database
+     * Load suggestion from database OR local storage
      */
     private async loadSuggestion(suggestionId: string): Promise<{ diff: string } | null> {
-        if (!dbClient.isConnected()) {
-            throw new Error('Database not connected. Cannot load suggestion.');
+        // Try database first (if connected)
+        if (dbClient.isConnected()) {
+            try {
+                const sql = dbClient.getClient();
+                if (sql) {
+                    const results = await sql`
+                        SELECT diff FROM suggestions WHERE id = ${suggestionId}
+                    `;
+
+                    if (results.length > 0) {
+                        logger.verbose('Loaded suggestion from database');
+                        return results[0] as { diff: string };
+                    }
+                }
+            } catch (error) {
+                logger.warn(`Failed to load from database: ${(error as Error).message}`);
+            }
         }
 
-        const sql = dbClient.getClient();
-        if (!sql) {
-            return null;
+        // Fall back to local storage
+        try {
+            const { localStorage } = await import('../../storage/local.js');
+            const stored = await localStorage.loadSuggestion(suggestionId);
+
+            if (stored && stored.diff) {
+                logger.verbose('Loaded suggestion from local storage');
+                return { diff: stored.diff };
+            }
+        } catch (error) {
+            logger.warn(`Failed to load from local storage: ${(error as Error).message}`);
         }
 
-        const results = await sql`
-            SELECT diff FROM suggestions WHERE id = ${suggestionId}
-        `;
-
-        if (results.length === 0) {
-            return null;
-        }
-
-        return results[0] as { diff: string };
+        return null;
     }
 
     /**

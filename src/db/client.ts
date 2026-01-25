@@ -15,6 +15,7 @@ export class DatabaseClient {
     private sql: postgres.Sql | null = null;
     private db: ReturnType<typeof drizzle> | null = null;
     private isLocalOnly: boolean = false;
+    private isDisconnecting: boolean = false;
 
     async connect(localOnly: boolean = false): Promise<void> {
         if (localOnly) {
@@ -71,14 +72,17 @@ export class DatabaseClient {
 
     async disconnect(): Promise<void> {
         try {
-            if (this.sql) {
+            if (this.sql && !this.isDisconnecting) {
+                this.isDisconnecting = true;
                 await this.sql.end();
                 this.sql = null;
                 this.db = null;
+                this.isDisconnecting = false;
                 logger.verbose('Database connection closed');
             }
         } catch (error) {
             // Ignore errors during disconnect
+            this.isDisconnecting = false;
             logger.verbose(`Error during disconnect: ${(error as Error).message}`);
         }
     }

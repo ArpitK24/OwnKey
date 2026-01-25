@@ -8,6 +8,7 @@ import { dbOps } from '../db/operations.js';
 import { dbClient } from '../db/client.js';
 import { CodeContext } from '../types/index.js';
 import chalk from 'chalk';
+import { localStorage } from '../storage/local.js';
 
 export const suggestCommand = new Command('suggest')
     .description('Generate AI-powered suggestions for your code')
@@ -96,33 +97,64 @@ export const suggestCommand = new Command('suggest')
                 console.log();
             }
 
-            // Step 6: Store in database
+            // Step 6: Store suggestions (hybrid: database + local file)
+            let storedIds: string[] = [];
+
+            // Try database first (if connected)
             if (dbClient.isConnected()) {
-                logger.verbose('Storing suggestions in database...');
+                try {
+                    logger.verbose('Storing suggestions in database...');
 
-                let project = await dbOps.getProjectByPath(targetPath);
-                if (!project) {
-                    project = await dbOps.createProject(projectName, targetPath);
-                }
+                    let project = await dbOps.getProjectByPath(targetPath);
+                    if (!project) {
+                        project = await dbOps.createProject(projectName, targetPath);
+                    }
 
-                if (project) {
-                    const run = await dbOps.createRun(project.id, `suggest ${path}`);
+                    if (project) {
+                        const run = await dbOps.createRun(project.id, `suggest ${path}`);
 
-                    for (const suggestion of suggestions) {
-                        const stored = await dbOps.createSuggestion(project.id, suggestion);
-                        if (stored && run) {
-                            await dbOps.linkRunSuggestion(run.id, stored.id);
+                        for (const suggestion of suggestions) {
+                            try {
+                                const stored = await dbOps.createSuggestion(project.id, suggestion);
+                                if (stored && run) {
+                                    await dbOps.linkRunSuggestion(run.id, stored.id);
+                                    storedIds.push(stored.id);
+                                }
+                            } catch (err) {
+                                logger.warn(`Failed to store suggestion: ${(err as Error).message}`);
+                            }
+                        }
+
+                        if (run) {
+                            await dbOps.updateRunStatus(
+                                run.id,
+                                'completed',
+                                `Generated ${suggestions.length} suggestions`
+                            );
                         }
                     }
 
-                    if (run) {
-                        await dbOps.updateRunStatus(
-                            run.id,
-                            'completed',
-                            `Generated ${suggestions.length} suggestions`
-                        );
-                    }
+                    logger.success('Saved to database');
+                } catch (error) {
+                    logger.warn('Database save failed, using local storage only');
+                    logger.debug(`Database error: ${(error as Error).message}`);
                 }
+            }
+
+            // Always save to local file (cache or primary storage)
+            try {
+                const localStored = await localStorage.saveSuggestions(targetPath, projectName, suggestions);
+
+                if (!dbClient.isConnected()) {
+                    // Local-only mode: show IDs to user
+                    storedIds = localStored.map(s => s.id);
+                    logger.success('Saved locally');
+                    console.log(chalk.gray(`\n  💾 Suggestion IDs: ${storedIds.slice(0, 3).join(', ')}${storedIds.length > 3 ? '...' : ''}`));
+                } else {
+                    logger.verbose('Also cached locally for quick access');
+                }
+            } catch (error) {
+                logger.warn(`Failed to save locally: ${(error as Error).message}`);
             }
 
             // Summary
@@ -152,7 +184,9 @@ export const suggestCommand = new Command('suggest')
             logger.error('Suggest failed', error as Error);
             process.exit(1);
         } finally {
-            // Always close database connection to prevent UV handle errors
-            await dbClient.disconnect();
+            // Only disconnect if database was connected
+            if (dbClient.isConnected()) {
+                await dbClient.disconnect();
+            }
         }
     });
