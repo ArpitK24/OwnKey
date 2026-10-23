@@ -3,10 +3,14 @@ import type { CodeContext, Suggestion } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 
 export class OpenAIProvider extends AIProvider {
-    private baseUrl = 'https://api.openai.com/v1';
+    private baseUrl: string;
 
-    constructor(apiKey?: string, model?: string) {
-        super(apiKey, model);
+    /**
+     * @param endpoint Optional OpenAI-compatible base URL (OpenRouter, Groq, LM Studio, vLLM, ...)
+     */
+    constructor(apiKey?: string, model?: string, endpoint?: string) {
+        super(apiKey, model, endpoint);
+        this.baseUrl = (endpoint || 'https://api.openai.com/v1').replace(/\/+$/, '');
     }
 
     getDefaultModel(): string {

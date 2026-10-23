@@ -35,7 +35,9 @@ ownkey config --provider gemini --api-key YOUR_API_KEY
 # Analyze your code
 ownkey suggest .
 
-# Apply a suggestion
+# List pending suggestions, preview one, then apply it
+ownkey apply
+ownkey apply local-123456789-0 --dry-run
 ownkey apply local-123456789-0
 
 # Undo if needed
@@ -52,12 +54,15 @@ ownkey suggest . --local-only
 
 ### With Database (Optional)
 
-For persistent history across devices:
+For persistent history across devices, add any Postgres database (Supabase works great). Use the
+**connection string** from Supabase → Connect → Session pooler; tables are created automatically:
 
 ```bash
-ownkey config --supabase-url YOUR_URL --supabase-key YOUR_KEY
+ownkey config --database-url "postgresql://postgres.<ref>:<password>@aws-0-<region>.pooler.supabase.com:5432/postgres"
 ownkey suggest .
 ```
+
+`--supabase-url` still works as an alias. Remove it any time with `ownkey config --no-database`.
 
 ## 📚 Documentation
 
@@ -78,4 +83,4 @@ MIT © [OwnKey](https://ownkey.qzz.io)
 
 ---
 
-**[Website](https://ownkey.qzz.io)** • **[Documentation](https://ownkey.qzz.io/docs)** • **[GitHub](https://github.com/ArpitK24/ownkey-cli)**
+**[Website](https://ownkey.qzz.io)** • **[Documentation](https://ownkey.qzz.io/docs)** • **[GitHub](https://github.com/ArpitK24/ownkey)**

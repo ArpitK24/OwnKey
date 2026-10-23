@@ -4,14 +4,29 @@ import { dbClient } from '../db/client.js';
 import { logger } from '../utils/logger.js';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
+import { localStorage } from '../storage/local.js';
+
+let assumeYes = false;
+
+/** Confirm, honouring --yes and refusing to hang when there is no terminal. */
+async function confirmOrYes(message: string): Promise<boolean> {
+    if (assumeYes) return true;
+    if (!process.stdin.isTTY) {
+        throw new Error('No terminal to confirm in. Re-run with --yes.');
+    }
+    const { confirm } = await inquirer.prompt([{ type: 'confirm', name: 'confirm', message, default: false }]);
+    return confirm;
+}
 
 export const undoCommand = new Command('undo')
     .description('Undo a previously applied suggestion')
     .argument('[backup-id]', 'Backup ID to restore (optional)')
     .option('--list', 'List recent applies')
     .option('--all', 'Undo all applies from today')
+    .option('-y, --yes', 'Skip the confirmation prompt')
     .action(async (backupId, options) => {
         try {
+            assumeYes = Boolean(options.yes);
             const backupManager = new BackupManager();
 
             // List mode
@@ -33,10 +48,14 @@ export const undoCommand = new Command('undo')
             }
 
             // Interactive mode - show list and let user choose
+            if (!process.stdin.isTTY) {
+                await listRecentApplies(backupManager);
+                return;
+            }
             await interactiveUndo(backupManager);
         } catch (error) {
-            logger.error('Undo failed', error as Error);
-            process.exit(1);
+            logger.error(`Undo failed: ${(error as Error).message}`);
+            process.exitCode = 1;
         }
     });
 
@@ -73,8 +92,9 @@ async function undoBackup(backupManager: BackupManager, backupId: string): Promi
     // Get backup metadata
     const metadata = await backupManager.getBackupMetadata(backupId);
     if (!metadata) {
-        logger.error(`Backup not found: ${backupId}`);
-        process.exit(1);
+        logger.error(`Backup not found: ${backupId}. See: ownkey undo --list`);
+        process.exitCode = 1;
+        return;
     }
 
     // Show what will be restored
@@ -83,16 +103,12 @@ async function undoBackup(backupManager: BackupManager, backupId: string): Promi
     for (const file of metadata.files) {
         console.log(chalk.gray(`    - ${file}`));
     }
+    for (const file of metadata.created || []) {
+        console.log(chalk.gray(`    - ${file} (created by apply, will be removed)`));
+    }
 
     // Confirm
-    const { confirm } = await inquirer.prompt([
-        {
-            type: 'confirm',
-            name: 'confirm',
-            message: 'Are you sure you want to restore these files?',
-            default: false,
-        },
-    ]);
+    const confirm = await confirmOrYes('Restore these files?');
 
     if (!confirm) {
         console.log(chalk.yellow('\n  Undo cancelled.\n'));
@@ -101,6 +117,7 @@ async function undoBackup(backupManager: BackupManager, backupId: string): Promi
 
     // Restore
     await backupManager.restore(backupId);
+    await localStorage.clearApplied(backupId).catch(() => undefined);
 
     // Update database if connected
     if (dbClient.isConnected()) {
@@ -108,7 +125,7 @@ async function undoBackup(backupManager: BackupManager, backupId: string): Promi
     }
 
     logger.success('Files restored successfully!');
-    console.log(chalk.green(`\n✓ Restored ${metadata.files.length} file(s) from backup\n`));
+    console.log(chalk.green(`\n✓ Restored ${metadata.files.length + (metadata.created?.length ?? 0)} file(s) from backup\n`));
 }
 
 /**
@@ -135,14 +152,7 @@ async function undoAllToday(backupManager: BackupManager): Promise<void> {
         console.log(`  ${chalk.cyan(backup.id)} - ${backup.fileCount} file(s)`);
     }
 
-    const { confirm } = await inquirer.prompt([
-        {
-            type: 'confirm',
-            name: 'confirm',
-            message: `Undo all ${todayBackups.length} apply(ies)?`,
-            default: false,
-        },
-    ]);
+    const confirm = await confirmOrYes(`Undo all ${todayBackups.length} apply(ies)?`);
 
     if (!confirm) {
         console.log(chalk.yellow('\n  Undo cancelled.\n'));
@@ -153,6 +163,7 @@ async function undoAllToday(backupManager: BackupManager): Promise<void> {
     for (const backup of todayBackups) {
         console.log(chalk.gray(`\n  Restoring ${backup.id}...`));
         await backupManager.restore(backup.id);
+        await localStorage.clearApplied(backup.id).catch(() => undefined);
 
         if (dbClient.isConnected()) {
             await markAsRolledBack(backup.id);

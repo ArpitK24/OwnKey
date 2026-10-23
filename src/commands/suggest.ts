@@ -9,6 +9,8 @@ import { dbClient } from '../db/client.js';
 import { CodeContext } from '../types/index.js';
 import chalk from 'chalk';
 import { localStorage } from '../storage/local.js';
+import { configManager } from '../config/manager.js';
+import { meetsSeverity, parseSeverity } from '../utils/severity.js';
 
 export const suggestCommand = new Command('suggest')
     .description('Generate AI-powered suggestions for your code')
@@ -19,6 +21,18 @@ export const suggestCommand = new Command('suggest')
     .action(async (path: string, options) => {
         try {
             const targetPath = resolve(path);
+            const minSeverity = parseSeverity(options.severity);
+            const typeFilter: string | undefined = options.type?.toLowerCase();
+
+            const config = await configManager.load();
+            if (!(await configManager.exists()) || !config.activeProvider) {
+                console.log(chalk.yellow('\n⚠️  No AI provider configured.\n'));
+                console.log('Set one up with:');
+                console.log(chalk.cyan('  ownkey config                                   (interactive)'));
+                console.log(chalk.cyan('  ownkey config --provider openai --api-key <key>'));
+                console.log(chalk.cyan('  ownkey config --provider ollama                 (local, no key)\n'));
+                process.exit(1);
+            }
 
             if (!existsSync(targetPath)) {
                 logger.error(`Path does not exist: ${targetPath}`);
@@ -79,6 +93,8 @@ export const suggestCommand = new Command('suggest')
             let count = 0;
 
             for await (const suggestion of provider.analyze(context)) {
+                if (typeFilter && suggestion.type !== typeFilter) continue;
+                if (!meetsSeverity(suggestion.severity, minSeverity)) continue;
                 count++;
                 suggestions.push(suggestion);
 
@@ -97,64 +113,46 @@ export const suggestCommand = new Command('suggest')
                 console.log();
             }
 
-            // Step 6: Store suggestions (hybrid: database + local file)
-            let storedIds: string[] = [];
+            // Step 6: Store. Local storage is always written and holds the IDs apply uses;
+            // the optional database mirrors them for history.
+            let localStored: Awaited<ReturnType<typeof localStorage.saveSuggestions>> = [];
+            try {
+                localStored = await localStorage.saveSuggestions(targetPath, projectName, suggestions);
+            } catch (error) {
+                logger.warn(`Failed to save suggestions locally: ${(error as Error).message}`);
+            }
 
-            // Try database first (if connected)
-            if (dbClient.isConnected()) {
+            if (dbClient.isConnected() && suggestions.length > 0) {
                 try {
-                    logger.verbose('Storing suggestions in database...');
-
                     let project = await dbOps.getProjectByPath(targetPath);
                     if (!project) {
                         project = await dbOps.createProject(projectName, targetPath);
                     }
-
                     if (project) {
                         const run = await dbOps.createRun(project.id, `suggest ${path}`);
-
-                        for (const suggestion of suggestions) {
-                            try {
-                                const stored = await dbOps.createSuggestion(project.id, suggestion);
-                                if (stored && run) {
-                                    await dbOps.linkRunSuggestion(run.id, stored.id);
-                                    storedIds.push(stored.id);
-                                }
-                            } catch (err) {
-                                logger.warn(`Failed to store suggestion: ${(err as Error).message}`);
+                        for (let i = 0; i < suggestions.length; i++) {
+                            const stored = await dbOps.createSuggestion(project.id, suggestions[i]);
+                            if (stored && run) await dbOps.linkRunSuggestion(run.id, stored.id);
+                            if (stored && localStored[i]) {
+                                await localStorage.updateSuggestion(localStored[i].id, { dbId: stored.id });
                             }
                         }
-
                         if (run) {
-                            await dbOps.updateRunStatus(
-                                run.id,
-                                'completed',
-                                `Generated ${suggestions.length} suggestions`
-                            );
+                            await dbOps.updateRunStatus(run.id, 'completed', `Generated ${suggestions.length} suggestions`);
                         }
+                        logger.verbose('Saved suggestions to database');
                     }
-
-                    logger.success('Saved to database');
                 } catch (error) {
-                    logger.warn('Database save failed, using local storage only');
-                    logger.debug(`Database error: ${(error as Error).message}`);
+                    logger.warn(`Database save failed (${(error as Error).message}); suggestions are saved locally.`);
                 }
             }
 
-            // Always save to local file (cache or primary storage)
-            try {
-                const localStored = await localStorage.saveSuggestions(targetPath, projectName, suggestions);
-
-                if (!dbClient.isConnected()) {
-                    // Local-only mode: show IDs to user
-                    storedIds = localStored.map(s => s.id);
-                    logger.success('Saved locally');
-                    console.log(chalk.gray(`\n  💾 Suggestion IDs: ${storedIds.slice(0, 3).join(', ')}${storedIds.length > 3 ? '...' : ''}`));
-                } else {
-                    logger.verbose('Also cached locally for quick access');
-                }
-            } catch (error) {
-                logger.warn(`Failed to save locally: ${(error as Error).message}`);
+            if (localStored.length > 0) {
+                console.log(chalk.bold('\n🆔 Suggestion IDs\n'));
+                localStored.forEach((s, i) => {
+                    const applicable = s.diff && s.diff.trim() ? chalk.green('apply-ready') : chalk.gray('advice only');
+                    console.log(`  [${i + 1}] ${chalk.cyan(s.id)}  ${applicable}`);
+                });
             }
 
             // Summary
@@ -179,7 +177,9 @@ export const suggestCommand = new Command('suggest')
             }
 
             console.log();
-            logger.success('Suggestions generated successfully');
+            if (localStored.some((s) => s.diff && s.diff.trim())) {
+                console.log(chalk.cyan('  Next: ownkey apply <id>   (or ownkey apply --all)\n'));
+            }
         } catch (error) {
             logger.error('Suggest failed', error as Error);
             process.exit(1);

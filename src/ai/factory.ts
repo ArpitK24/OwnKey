@@ -39,7 +39,7 @@ export class AIProviderFactory {
                     throw new ConfigError('OpenAI API key not found. Run: ownkey config');
                 }
                 const openaiModel = config.providers.openai?.model || 'gpt-4-turbo';
-                return new OpenAIProvider(apiKey, openaiModel);
+                return new OpenAIProvider(apiKey, openaiModel, config.providers.openai?.endpoint);
 
             case 'anthropic':
                 if (!apiKey) {
@@ -109,7 +109,7 @@ export class AIProviderFactory {
                 case 'anthropic':
                     return await AnthropicProvider.getAvailableModels(apiKey);
                 case 'ollama':
-                    return ['deepseek-coder:latest', 'codellama:latest', 'llama2:latest'];
+                    return await OllamaProvider.getAvailableModels(apiKey || undefined);
                 default:
                     return [];
             }

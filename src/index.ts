@@ -2,9 +2,8 @@
 
 import { Command } from 'commander';
 import { logger } from './utils/logger.js';
-import { configManager } from './config/manager.js';
 import { dbClient } from './db/client.js';
-import chalk from 'chalk';
+import { createRequire } from 'module';
 
 // Import commands
 import { configCommand } from './commands/config.js';
@@ -18,7 +17,7 @@ const program = new Command();
 program
     .name('ownkey')
     .description('Local-first AI coding agent for intelligent codebase analysis')
-    .version('1.0.0');
+    .version(createRequire(import.meta.url)('../package.json').version);
 
 // Global options
 program.option('--local-only', 'Run without database persistence');
@@ -33,13 +32,15 @@ program.addCommand(suggestCommand);
 program.addCommand(applyCommand);
 program.addCommand(undoCommand);
 
-// Pre-parse hook to set up logging and check config
-program.hook('preAction', async (thisCommand) => {
+// Pre-action hook: set up logging and storage.
+// Note: the hook is registered on the root program, so `thisCommand` is always the
+// root. The command actually being run is the second argument (`actionCommand`).
+program.hook('preAction', async (thisCommand, actionCommand) => {
     await logger.init();
 
+    // Global flags live on the root program
     const opts = thisCommand.opts();
 
-    // Set log level
     if (opts.debug) {
         logger.setLevel('debug');
     } else if (opts.verbose) {
@@ -48,23 +49,13 @@ program.hook('preAction', async (thisCommand) => {
         logger.setLevel('quiet');
     }
 
-    // Check if this is the config command
-    const isConfigCommand = thisCommand.name() === 'config';
-
-    // For non-config commands, check if config exists
-    if (!isConfigCommand) {
-        const configExists = await configManager.exists();
-
-        if (!configExists) {
-            console.log(chalk.yellow('\n⚠️  No configuration found.\n'));
-            console.log('OwnKey needs to be configured before use.');
-            console.log(chalk.cyan('\nRun: ownkey config\n'));
-            process.exit(1);
-        }
-
-        // Connect to database (or enter local-only mode)
-        await dbClient.connect(opts.localOnly);
+    // `config` must always run, even with no configuration yet; it never needs the database.
+    if (actionCommand.name() === 'config') {
+        return;
     }
+
+    // Optional database (Supabase/Postgres). Silent no-op when not configured.
+    await dbClient.connect(Boolean(opts.localOnly));
 });
 
 // Post-action hook to clean up
@@ -73,4 +64,4 @@ program.hook('postAction', async () => {
 });
 
 // Parse arguments
-program.parse();
+await program.parseAsync();

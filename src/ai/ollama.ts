@@ -32,119 +32,42 @@ export class OllamaProvider extends AIProvider {
     }
 
     async *analyze(context: CodeContext): AsyncGenerator<Suggestion> {
-        const prompt = this.buildPrompt(context);
-
+        let response: Response;
         try {
-            const response = await fetch(`${this.baseUrl}/api/generate`, {
+            // Same prompt and JSON contract as every other provider, so suggestions carry diffs.
+            response = await fetch(`${this.baseUrl}/api/generate`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     model: this.model,
-                    prompt: prompt,
+                    system: this.getSystemPrompt(),
+                    prompt: this.buildUserPrompt(context),
                     stream: false,
+                    options: { temperature: 0.2 },
                 }),
             });
-
-            if (!response.ok) {
-                throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
-            }
-
-            const data = await response.json() as { response: string };
-            const suggestions = this.parseResponse(data.response, context);
-
-            for (const suggestion of suggestions) {
-                yield suggestion;
-            }
         } catch (error) {
-            if ((error as any).code === 'ECONNREFUSED') {
-                throw new Error(
-                    'Cannot connect to Ollama. Please ensure Ollama is running:\n' +
-                    '  Start Ollama: ollama serve\n' +
-                    '  Or check if Ollama is installed: https://ollama.ai'
-                );
-            }
-            throw error;
+            throw new Error(
+                `Cannot reach Ollama at ${this.baseUrl} (${(error as Error).message}).\n` +
+                    '  Start it with: ollama serve\n' +
+                    '  Or set another endpoint: ownkey config --provider ollama --endpoint <url>'
+            );
         }
-    }
 
-    private buildPrompt(context: CodeContext): string {
-        const fileContents = context.files
-            .map((file) => `File: ${file.path}\n\`\`\`\n${file.content}\n\`\`\``)
-            .join('\n\n');
-
-        return `You are a code analysis expert. Analyze the following code and identify issues.
-
-Project: ${context.projectInfo.name}
-Files to analyze: ${context.projectInfo.fileCount}
-
-${fileContents}
-
-Please analyze this code and provide suggestions for:
-- Bugs and potential errors
-- Security vulnerabilities
-- Performance issues
-- Code quality improvements
-- Missing tests
-- Documentation gaps
-
-For each issue found, provide:
-1. Type (bug, security, performance, test, documentation, style)
-2. Severity (critical, high, medium, low, info)
-3. File path
-4. Description of the issue
-5. Suggested fix
-
-Format your response as a JSON array of suggestions:
-[
-  {
-    "type": "bug",
-    "severity": "high",
-    "filePath": "path/to/file.js",
-    "content": "Description of the issue and suggested fix"
-  }
-]`;
-    }
-
-    private parseResponse(response: string, context: CodeContext): Suggestion[] {
-        try {
-            // Try to extract JSON from response
-            const jsonMatch = response.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) {
-                // Fallback: create generic suggestion
-                return [
-                    {
-                        type: 'style',
-                        severity: 'info',
-                        filePath: context.files[0]?.path || 'unknown',
-                        content: response.substring(0, 200),
-                        diff: '',
-                        rationale: 'AI response could not be parsed',
-                    },
-                ];
+        if (!response.ok) {
+            const body = await response.text().catch(() => '');
+            if (response.status === 404 && /model/i.test(body)) {
+                throw new Error(`Model "${this.model}" is not installed. Run: ollama pull ${this.model}`);
             }
+            throw new Error(`Ollama API error: ${response.status} ${response.statusText} ${body}`.trim());
+        }
 
-            const suggestions = JSON.parse(jsonMatch[0]);
-            return suggestions.map((s: any) => ({
-                type: s.type || 'info',
-                severity: s.severity || 'info',
-                filePath: s.filePath || context.files[0]?.path || 'unknown',
-                content: s.content || s.description || 'No description provided',
-            }));
-        } catch (error) {
-            logger.verbose(`Failed to parse Ollama response: ${(error as Error).message}`);
-            // Return generic suggestion if parsing fails
-            return [
-                {
-                    type: 'style',
-                    severity: 'info',
-                    filePath: context.files[0]?.path || 'unknown',
-                    content: response.substring(0, 200),
-                    diff: '',
-                    rationale: 'AI response parsing failed',
-                },
-            ];
+        const data = (await response.json()) as { response?: string };
+        const text = data.response ?? '';
+        logger.debug(`Ollama raw response (${text.length} chars): ${text.slice(0, 500)}`);
+
+        for (const suggestion of this.parseSuggestions(text)) {
+            yield suggestion;
         }
     }
 

@@ -10,6 +10,10 @@ export interface StoredSuggestion extends Suggestion {
     projectPath: string;
     projectName: string;
     createdAt: string;
+    /** Matching row id in the optional database */
+    dbId?: string;
+    appliedAt?: string;
+    backupId?: string;
 }
 
 export interface BackupInfo {
@@ -129,6 +133,34 @@ export class LocalStorage {
     async loadSuggestion(id: string): Promise<StoredSuggestion | null> {
         const all = await this.loadAllSuggestions();
         return all.find(s => s.id === id) || null;
+    }
+
+    /**
+     * Merge fields into a stored suggestion (e.g. mark applied, link a database id)
+     */
+    async updateSuggestion(id: string, patch: Partial<StoredSuggestion>): Promise<StoredSuggestion | null> {
+        const all = await this.loadAllSuggestions();
+        const index = all.findIndex((s) => s.id === id);
+        if (index === -1) return null;
+        all[index] = { ...all[index], ...patch, id };
+        await writeFile(this.suggestionsFile, JSON.stringify(all, null, 2));
+        return all[index];
+    }
+
+    /**
+     * After an undo: mark the suggestions applied with this backup as pending again
+     */
+    async clearApplied(backupId: string): Promise<void> {
+        const all = await this.loadAllSuggestions();
+        let changed = false;
+        for (const s of all) {
+            if (s.backupId === backupId) {
+                delete s.appliedAt;
+                delete s.backupId;
+                changed = true;
+            }
+        }
+        if (changed) await writeFile(this.suggestionsFile, JSON.stringify(all, null, 2));
     }
 
     /**

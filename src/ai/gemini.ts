@@ -36,9 +36,18 @@ export class GeminiProvider extends AIProvider {
     }
 
     async testConnection(): Promise<boolean> {
-        // Temporarily bypass for testing - will fix endpoint later
-        logger.verbose('Skipping Gemini connection test (will test during analysis)');
-        return true;
+        try {
+            const response = await fetch(`${this.baseUrl}/models?pageSize=1`, {
+                headers: { 'x-goog-api-key': this.apiKey || '' },
+            });
+            if (!response.ok) {
+                logger.debug(`Gemini connection test failed: ${response.status}`);
+            }
+            return response.ok;
+        } catch (error) {
+            logger.debug(`Gemini connection test error: ${(error as Error).message}`);
+            return false;
+        }
     }
 
     async *analyze(context: CodeContext, options?: AnalyzeOptions): AsyncGenerator<Suggestion> {

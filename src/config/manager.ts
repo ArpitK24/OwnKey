@@ -93,28 +93,61 @@ export class ConfigManager {
         await this.save(updated);
     }
 
-    async setSupabase(url: string, serviceRoleKey: string): Promise<void> {
+    /**
+     * Save the optional Postgres connection string (Supabase or any Postgres).
+     */
+    async setDatabaseUrl(url: string): Promise<void> {
         const config = await this.load();
-        config.supabaseUrl = url;
-        config.supabaseServiceRoleKey = serviceRoleKey;
+        config.databaseUrl = url;
+        // Clear legacy fields so there is a single source of truth
+        delete config.supabaseUrl;
+        delete config.supabaseServiceRoleKey;
         await this.save(config);
-        logger.success('Supabase configuration saved');
     }
 
-    async setProvider(provider: AIProvider, apiKey: string, model?: string): Promise<void> {
+    async clearDatabase(): Promise<void> {
+        const config = await this.load();
+        delete config.databaseUrl;
+        delete config.supabaseUrl;
+        delete config.supabaseServiceRoleKey;
+        await this.save(config);
+    }
+
+    /**
+     * Resolve the Postgres connection string, honouring the legacy supabaseUrl field
+     * when it already holds a postgres:// URL.
+     */
+    getDatabaseUrl(config: Config): string | undefined {
+        if (config.databaseUrl) return config.databaseUrl;
+        if (config.supabaseUrl && /^postgres(ql)?:\/\//i.test(config.supabaseUrl)) {
+            return config.supabaseUrl;
+        }
+        return undefined;
+    }
+
+    /**
+     * Set the active provider. apiKey is optional when one is already stored
+     * (or for Ollama, which needs none).
+     */
+    async setProvider(
+        provider: AIProvider,
+        apiKey?: string,
+        model?: string,
+        endpoint?: string
+    ): Promise<void> {
         const config = await this.load();
         config.activeProvider = provider;
 
-        if (model) {
-            if (!config.providers[provider]) {
-                config.providers[provider] = {};
-            }
-            config.providers[provider]!.model = model;
+        if (model || endpoint) {
+            const entry = (config.providers[provider] ??= {}) as { model?: string; endpoint?: string };
+            if (model) entry.model = model;
+            if (endpoint) entry.endpoint = endpoint;
         }
 
         await this.save(config);
-        await keychainManager.setApiKey(provider, apiKey);
-        logger.success(`${provider} provider configured`);
+        if (apiKey) {
+            await keychainManager.setApiKey(provider, apiKey);
+        }
     }
 
     async getApiKey(provider?: AIProvider): Promise<string | null> {
@@ -140,7 +173,7 @@ export class ConfigManager {
             }
 
             // Check if API key exists for active provider
-            if (config.activeProvider) {
+            if (config.activeProvider && config.activeProvider !== 'ollama') {
                 const apiKey = await this.getApiKey(config.activeProvider);
                 if (!apiKey) {
                     errors.push(`No API key found for ${config.activeProvider}`);

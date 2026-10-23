@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] - 2026-10-23
+
+### Fixed
+
+- **Fresh installs:** `ownkey config` no longer fails with "No configuration found. Run: ownkey config". Commands that do not need a provider (scan, apply, undo) now run without one.
+- **Ollama + apply:** Ollama uses the same prompt and JSON contract as the other providers, so its suggestions carry diffs and can be applied.
+- **apply:** shows the diff and asks before writing (use `--auto` to skip); patches files in the project the suggestion was made for, from any folder; tolerates off-by-a-few line numbers and rejects hunks that do not match; creates new files (undo removes them); `--all` and `--severity` work; `ownkey apply` with no ID lists pending suggestions; re-applying is blocked.
+- **Diff engine:** fixed a bug that inserted replacement lines one line too low; handles CRLF files and blank context lines.
+- **Optional database:** connects with a Postgres/Supabase connection string (`--database-url`), ships its SQL migrations in the package, and applies every pending migration. Local-only mode no longer prints database warnings.
+- **config:** validates providers and missing keys with clear errors, adds `--show`, `--endpoint`, `--no-database`, `--yes`; explains flags instead of crashing when there is no terminal.
+- **undo:** `--yes` for scripts; never hangs without a terminal.
+- Gemini connection test is real; repository links point to ArpitK24/ownkey.
+
+### Added
+
+- `--endpoint` for OpenAI-compatible APIs (OpenRouter, Groq, LM Studio, vLLM) and custom Ollama hosts.
+- `OWNKEY_NO_KEYCHAIN=1` to store keys in the encrypted file instead of the OS keychain.
+- Vitest suite: CLI smoke tests for every command against a mock Ollama server, diff/parsing unit tests, and an opt-in database test (`OWNKEY_TEST_DATABASE_URL`).
+
 ## [1.0.0] - 2026-01-25
 
 ### 🎉 Stable Release

@@ -4,6 +4,8 @@ export type LogLevel = 'quiet' | 'normal' | 'verbose' | 'debug';
 
 export type AIProvider = 'openai' | 'anthropic' | 'gemini' | 'ollama';
 
+export const AI_PROVIDERS: AIProvider[] = ['openai', 'anthropic', 'gemini', 'ollama'];
+
 export type SuggestionType =
     | 'bug'
     | 'security'
@@ -22,11 +24,17 @@ export type SuggestionAction = 'applied' | 'rejected' | 'undone';
 
 // Configuration types
 export interface Config {
+    /** Postgres connection string (Supabase → Connect → connection string). Optional. */
+    databaseUrl?: string;
+    /** @deprecated Legacy field. A postgres:// value here is treated as databaseUrl. */
     supabaseUrl?: string;
+    /** @deprecated Legacy field, no longer used to connect. */
     supabaseServiceRoleKey?: string;
     providers: {
         openai?: {
             model?: string;
+            /** OpenAI-compatible base URL (e.g. https://openrouter.ai/api/v1) */
+            endpoint?: string;
         };
         anthropic?: {
             model?: string;

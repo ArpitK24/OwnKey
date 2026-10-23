@@ -22,7 +22,8 @@ CREATE INDEX IF NOT EXISTS idx_applies_status ON applies(status);
 -- Note: This will fail gracefully if suggestions table doesn't exist yet
 DO $$
 BEGIN
-    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'suggestions') THEN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'suggestions')
+       AND NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'fk_applies_suggestion') THEN
         ALTER TABLE applies 
         ADD CONSTRAINT fk_applies_suggestion 
         FOREIGN KEY (suggestion_id) 

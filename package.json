@@ -1,7 +1,7 @@
 {
   "name": "ownkey",
-  "version": "1.0.0",
-  "description": "Local-first AI coding agent with Google Gemini integration for intelligent codebase analysis",
+  "version": "1.0.1",
+  "description": "Local-first AI coding agent CLI: scan, suggest, apply and undo with your own keys (OpenAI, Anthropic, Gemini, Ollama)",
   "main": "dist/index.js",
   "bin": {
     "ownkey": "dist/index.js"
@@ -9,10 +9,10 @@
   "type": "module",
   "scripts": {
     "dev": "tsx src/index.ts",
-    "build": "tsc",
-    "test": "vitest",
-    "test:unit": "vitest run --dir tests/unit",
-    "test:integration": "vitest run --dir tests/integration",
+    "build": "tsc && node scripts/copy-assets.mjs",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "prepublishOnly": "npm run build"
@@ -27,12 +27,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ArpitK24/OwnKey.git"
+    "url": "git+https://github.com/ArpitK24/ownkey.git"
   },
   "bugs": {
-    "url": "https://github.com/ArpitK24/OwnKey/issues"
+    "url": "https://github.com/ArpitK24/ownkey/issues"
   },
-  "homepage": "https://github.com/ArpitK24/OwnKey#readme",
+  "homepage": "https://github.com/ArpitK24/ownkey#readme",
   "keywords": [
     "ai",
     "coding-agent",

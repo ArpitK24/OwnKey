@@ -1,13 +1,18 @@
 import { mkdir, copyFile, readdir, rm, readFile, writeFile } from 'fs/promises';
-import { join, dirname, relative } from 'path';
+import { join, dirname, relative, resolve } from 'path';
 import { homedir } from 'os';
 import { existsSync } from 'fs';
 
 export interface BackupMetadata {
     id: string;
     timestamp: Date;
+    /** Paths relative to `root` that existed and were copied */
     files: string[];
     reason: string;
+    /** Project root the paths are relative to (older backups: the cwd at restore time) */
+    root?: string;
+    /** Paths relative to `root` that did not exist before the apply; undo deletes them */
+    created?: string[];
 }
 
 export interface BackupInfo {
@@ -27,40 +32,39 @@ export class BackupManager {
     /**
      * Create a backup of files before applying changes
      */
-    async createBackup(files: string[], reason: string = 'apply'): Promise<string> {
+    async createBackup(
+        files: string[],
+        reason: string = 'apply',
+        root: string = process.cwd()
+    ): Promise<string> {
         const backupId = this.generateBackupId();
         const backupPath = join(this.backupDir, backupId);
-
-        // Create backup directory
         await mkdir(backupPath, { recursive: true });
 
-        // Copy each file
         const copiedFiles: string[] = [];
+        const createdFiles: string[] = [];
         for (const file of files) {
-            const relativePath = relative(process.cwd(), file);
-            const targetPath = join(backupPath, relativePath);
-
-            // Create parent directories
+            const relativePath = relative(root, resolve(root, file));
+            if (!existsSync(file)) {
+                // New file: nothing to copy, remember it so undo can remove it
+                createdFiles.push(relativePath);
+                continue;
+            }
+            const targetPath = join(backupPath, 'files', relativePath);
             await mkdir(dirname(targetPath), { recursive: true });
-
-            // Copy file
             await copyFile(file, targetPath);
             copiedFiles.push(relativePath);
         }
 
-        // Save metadata
         const metadata: BackupMetadata = {
             id: backupId,
             timestamp: new Date(),
             files: copiedFiles,
+            created: createdFiles,
             reason,
+            root,
         };
-
-        await writeFile(
-            join(backupPath, 'metadata.json'),
-            JSON.stringify(metadata, null, 2),
-            'utf-8'
-        );
+        await writeFile(join(backupPath, 'metadata.json'), JSON.stringify(metadata, null, 2), 'utf-8');
 
         return backupId;
     }
@@ -83,7 +87,7 @@ export class BackupManager {
                 backups.push({
                     id: metadata.id,
                     timestamp: new Date(metadata.timestamp),
-                    fileCount: metadata.files.length,
+                    fileCount: metadata.files.length + (metadata.created?.length ?? 0),
                     reason: metadata.reason,
                 });
             }
@@ -116,18 +120,22 @@ export class BackupManager {
         }
 
         const backupPath = join(this.backupDir, backupId);
-        const filesToRestore = files || metadata.files;
+        const root = metadata.root || process.cwd();
+        // v1.0.0 backups stored files at the top level; v1.0.1+ under files/
+        const storeDir = existsSync(join(backupPath, 'files')) ? join(backupPath, 'files') : backupPath;
 
-        for (const file of filesToRestore) {
-            const sourcePath = join(backupPath, file);
-            const targetPath = join(process.cwd(), file);
-
+        for (const file of files || metadata.files) {
+            const sourcePath = join(storeDir, file);
+            const targetPath = join(root, file);
             if (existsSync(sourcePath)) {
-                // Create parent directories
                 await mkdir(dirname(targetPath), { recursive: true });
-
-                // Restore file
                 await copyFile(sourcePath, targetPath);
+            }
+        }
+
+        if (!files) {
+            for (const file of metadata.created || []) {
+                await rm(join(root, file), { force: true });
             }
         }
     }
@@ -165,8 +173,8 @@ export class BackupManager {
      */
     private generateBackupId(): string {
         const now = new Date();
-        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
-        return timestamp;
+        const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -1);
+        return existsSync(join(this.backupDir, timestamp)) ? `${timestamp}-${Math.random().toString(36).slice(2, 6)}` : timestamp;
     }
 
     /**

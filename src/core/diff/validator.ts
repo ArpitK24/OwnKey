@@ -1,5 +1,7 @@
-import { ParsedDiff, Hunk } from './parser.js';
+import { ParsedDiff } from './parser.js';
 import { readFile } from 'fs/promises';
+import { existsSync } from 'fs';
+import { DiffApplier } from './applier.js';
 
 export interface ValidationResult {
     valid: boolean;
@@ -9,97 +11,25 @@ export interface ValidationResult {
 
 export class DiffValidator {
     /**
-     * Validate a parsed diff before applying
+     * Validate a parsed diff against the file it targets (a missing file is only
+     * valid when the diff creates it).
      */
     static async validate(diff: ParsedDiff, targetPath: string): Promise<ValidationResult> {
-        const errors: string[] = [];
-        const warnings: string[] = [];
-
         try {
-            // Check if file exists
-            const fileContent = await readFile(targetPath, 'utf-8');
-            const lines = fileContent.split('\n');
-
-            // Validate each hunk
-            for (const hunk of diff.hunks) {
-                const hunkValidation = this.validateHunk(hunk, lines);
-                errors.push(...hunkValidation.errors);
-                warnings.push(...hunkValidation.warnings);
+            const exists = existsSync(targetPath);
+            if (!exists && diff.oldPath !== '/dev/null' && diff.hunks.some((h) => h.oldLines > 0)) {
+                return { valid: false, errors: [`File not found: ${targetPath}`], warnings: [] };
             }
+            const original = exists ? await readFile(targetPath, 'utf-8') : null;
+            const result = DiffApplier.applyToContent(original, diff);
+            return { valid: result.ok, errors: result.errors, warnings: result.warnings };
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-                errors.push(`File not found: ${targetPath}`);
-            } else {
-                errors.push(`Failed to read file: ${(error as Error).message}`);
-            }
+            return { valid: false, errors: [`Failed to read file: ${(error as Error).message}`], warnings: [] };
         }
-
-        return {
-            valid: errors.length === 0,
-            errors,
-            warnings,
-        };
     }
 
-    /**
-     * Validate a single hunk against file content
-     */
-    private static validateHunk(hunk: Hunk, fileLines: string[]): ValidationResult {
-        const errors: string[] = [];
-        const warnings: string[] = [];
-
-        // Check if hunk is within file bounds
-        if (hunk.oldStart < 1 || hunk.oldStart > fileLines.length + 1) {
-            errors.push(`Hunk starts at line ${hunk.oldStart}, but file only has ${fileLines.length} lines`);
-            return { valid: false, errors, warnings };
-        }
-
-        // Validate context lines match
-        let fileLineIndex = hunk.oldStart - 1;
-        for (const change of hunk.changes) {
-            if (change.type === 'context' || change.type === 'remove') {
-                if (fileLineIndex >= fileLines.length) {
-                    errors.push(`Context line ${fileLineIndex + 1} is beyond end of file`);
-                    break;
-                }
-
-                const fileLine = fileLines[fileLineIndex];
-                if (fileLine !== change.content) {
-                    warnings.push(
-                        `Line ${fileLineIndex + 1} doesn't match context:\n` +
-                        `  Expected: "${change.content}"\n` +
-                        `  Found:    "${fileLine}"`
-                    );
-                }
-                fileLineIndex++;
-            }
-        }
-
-        return { valid: errors.length === 0, errors, warnings };
-    }
-
-    /**
-     * Check if diff can be applied cleanly (no conflicts)
-     */
+    /** Check if a diff applies to the given content. */
     static canApplyCleanly(diff: ParsedDiff, fileContent: string): boolean {
-        const lines = fileContent.split('\n');
-
-        for (const hunk of diff.hunks) {
-            let fileLineIndex = hunk.oldStart - 1;
-
-            for (const change of hunk.changes) {
-                if (change.type === 'context' || change.type === 'remove') {
-                    if (fileLineIndex >= lines.length) {
-                        return false;
-                    }
-                    if (lines[fileLineIndex] !== change.content) {
-                        return false;
-                    }
-                    fileLineIndex++;
-                }
-            }
-        }
-
-        return true;
+        return DiffApplier.applyToContent(fileContent, diff).ok;
     }
 }

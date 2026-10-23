@@ -8,9 +8,13 @@ import { Encryption } from '../utils/encryption.js';
 import { KEYS_FILE, CONFIG_DIR } from './defaults.js';
 
 // Try to use keytar, but fallback gracefully if not available
+// Set OWNKEY_NO_KEYCHAIN=1 to force file storage (CI, containers, tests).
 let keytar: any = null;
 try {
-    keytar = await import('keytar');
+    if (!process.env.OWNKEY_NO_KEYCHAIN) {
+        const mod: any = await import('keytar');
+        keytar = mod.default ?? mod;
+    }
 } catch (error) {
     logger.verbose('Keytar not available, using encrypted file storage for API keys');
 }

@@ -108,7 +108,7 @@ export class InteractiveMode {
     /**
      * Show full diff with syntax highlighting
      */
-    private static showFullDiff(diff: ParsedDiff): void {
+    static showFullDiff(diff: ParsedDiff): void {
         console.log(chalk.bold(`\n--- a/${diff.oldPath || diff.filePath}`));
         console.log(chalk.bold(`+++ b/${diff.newPath || diff.filePath}\n`));
 

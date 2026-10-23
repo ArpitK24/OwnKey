@@ -56,6 +56,10 @@ Guidelines:
 - Provide clear rationale for each suggestion
 - Use unified diff format for code changes
 - Categorize suggestions by type and severity
+- "filePath" must be the file's path relative to the project root, exactly as written in its "###" heading
+- "diff" must be a unified diff for that one file: "--- a/<filePath>", "+++ b/<filePath>", then "@@" hunks
+  with 2-3 unchanged context lines copied exactly from the file (same indentation)
+- If you cannot produce an exact diff, omit the suggestion
 
 Output Format:
 Return a JSON array of suggestions. Each suggestion must have:
@@ -105,27 +109,58 @@ Be thorough but practical. Focus on high-impact suggestions.`;
      * Parse AI response and extract suggestions
      */
     protected parseSuggestions(response: string): Suggestion[] {
-        try {
-            // Try to extract JSON from response
-            const jsonMatch = response.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) {
-                throw new Error('No JSON array found in response');
-            }
+        const parsed = AIProvider.extractJson(response);
+        const list: any[] | null = Array.isArray(parsed)
+            ? parsed
+            : Array.isArray(parsed?.suggestions)
+              ? parsed.suggestions
+              : null;
 
-            const suggestions = JSON.parse(jsonMatch[0]);
+        if (!list) {
+            throw new Error(
+                'The model did not return suggestions in the expected JSON format. ' +
+                    'Try again, or use a larger model (run with --debug to see the raw reply).'
+            );
+        }
 
-            // Validate and normalize suggestions
-            return suggestions.map((s: any) => ({
+        return list
+            .filter((s) => s && typeof s === 'object')
+            .map((s: any) => ({
                 type: s.type || 'refactor',
                 severity: s.severity || 'medium',
-                content: s.content || 'No description provided',
-                filePath: s.filePath || '',
+                content: s.content || s.description || 'No description provided',
+                filePath: s.filePath || s.file || '',
                 rationale: s.rationale || '',
-                diff: s.diff || '',
+                diff: typeof s.diff === 'string' ? s.diff : '',
                 tags: s.tags,
             }));
-        } catch (error) {
-            throw new Error(`Failed to parse suggestions: ${error}`);
+    }
+
+    /**
+     * Pull the first JSON array/object out of a model reply (handles ```json fences and chatter).
+     */
+    static extractJson(text: string): any {
+        const fenced = /```(?:json)?\s*([\s\S]*?)```/i.exec(text);
+        const candidates = [fenced?.[1], text].filter(Boolean) as string[];
+        for (const candidate of candidates) {
+            const trimmed = candidate.trim();
+            try {
+                return JSON.parse(trimmed);
+            } catch {
+                // fall through to bracket scan
+            }
+            for (const [open, close] of [['[', ']'], ['{', '}']]) {
+                const i = trimmed.indexOf(open);
+                const j = trimmed.lastIndexOf(close);
+                if (i !== -1 && j > i) {
+                    try {
+                        return JSON.parse(trimmed.slice(i, j + 1));
+                    } catch {
+                        // try next shape
+                    }
+                }
+            }
         }
+        return null;
     }
 }

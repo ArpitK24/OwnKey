@@ -1,1 +1,2 @@
-export { BackupManager, BackupMetadata, BackupInfo } from './manager.js';
+export { BackupManager } from './manager.js';
+export type { BackupMetadata, BackupInfo } from './manager.js';

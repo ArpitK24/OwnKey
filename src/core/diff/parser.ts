@@ -29,7 +29,8 @@ export class DiffParser {
      */
     static parse(diffText: string): ParsedDiff[] {
         const diffs: ParsedDiff[] = [];
-        const lines = diffText.split('\n');
+        // Normalise line endings and drop trailing blank lines (they are not context)
+        const lines = diffText.replace(/\r\n/g, '\n').replace(/\n+$/, '').split('\n');
         let currentDiff: ParsedDiff | null = null;
         let currentHunk: Hunk | null = null;
         let lineNumber = 0;
@@ -46,7 +47,7 @@ export class DiffParser {
                     diffs.push(currentDiff);
                 }
 
-                const oldPath = line.substring(4).replace(/^a\//, '');
+                const oldPath = DiffParser.cleanPath(line.substring(4)).replace(/^a\//, '');
                 currentDiff = {
                     filePath: oldPath,
                     oldPath,
@@ -56,9 +57,12 @@ export class DiffParser {
             }
             // File header: +++ b/path/to/file.ts
             else if (line.startsWith('+++ ') && currentDiff) {
-                const newPath = line.substring(4).replace(/^b\//, '');
+                const newPath = DiffParser.cleanPath(line.substring(4)).replace(/^b\//, '');
                 currentDiff.newPath = newPath;
-                currentDiff.filePath = newPath;
+                // A deletion diff ends in /dev/null: keep the real path
+                if (newPath !== '/dev/null') {
+                    currentDiff.filePath = newPath;
+                }
             }
             // Hunk header: @@ -10,5 +10,6 @@
             else if (line.startsWith('@@')) {
@@ -93,7 +97,8 @@ export class DiffParser {
                         lineNumber: lineNumber,
                     });
                     lineNumber++;
-                } else if (line.startsWith(' ')) {
+                } else if (line.startsWith(' ') || line === '') {
+                    // Models often strip the leading space from blank context lines
                     currentHunk.changes.push({
                         type: 'context',
                         content: line.substring(1),
@@ -101,6 +106,7 @@ export class DiffParser {
                     });
                     lineNumber++;
                 }
+                // '\\ No newline at end of file' and other noise are ignored
             }
         }
 
@@ -113,6 +119,11 @@ export class DiffParser {
         }
 
         return diffs;
+    }
+
+    /** Strip tab-separated timestamps and surrounding quotes from a ---/+++ path. */
+    static cleanPath(raw: string): string {
+        return raw.split('\t')[0].trim().replace(/^"(.*)"$/, '$1');
     }
 
     /**
