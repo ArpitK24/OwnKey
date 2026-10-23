@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1] - 2026-10-23
+
+### Fixed
+
+- CI: `package-lock.json` is now committed, so `npm ci` and dependency caching work. The test matrix (Node 18, 20, 22) runs from a clean install.
+
 ## [1.1.0] - 2026-10-23
 
 OwnKey becomes a local-first AI code reviewer: review what changed, gate pull requests, and apply fixes that are verified before they stick.
