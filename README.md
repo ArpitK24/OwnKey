@@ -10,10 +10,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/ownkey"><img src="https://img.shields.io/npm/v/ownkey?style=flat-square&color=111111&label=npm" alt="npm version"></a>
-  <a href="https://www.npmjs.com/package/ownkey"><img src="https://img.shields.io/npm/dm/ownkey?style=flat-square&color=111111" alt="npm downloads"></a>
-  <img src="https://img.shields.io/node/v/ownkey?style=flat-square&color=111111" alt="node version">
-  <a href="https://github.com/ArpitK24/OwnKey/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/ownkey?style=flat-square&color=111111" alt="license"></a>
+  <a href="https://www.npmjs.com/package/ownkey"><img src="https://img.shields.io/npm/v/ownkey.svg" alt="npm version"></a>
+  <img src="https://img.shields.io/node/v/ownkey.svg" alt="node version">
+  <a href="https://github.com/ArpitK24/OwnKey/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="license"></a>
 </p>
 
 <p align="center">
