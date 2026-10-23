@@ -1,4 +1,5 @@
 import { AIProvider } from './provider.js';
+import { DEFAULT_MODELS } from '../config/models.js';
 import { GeminiProvider } from './gemini.js';
 import { OpenAIProvider } from './openai.js';
 import { AnthropicProvider } from './anthropic.js';
@@ -38,19 +39,19 @@ export class AIProviderFactory {
                 if (!apiKey) {
                     throw new ConfigError('OpenAI API key not found. Run: ownkey config');
                 }
-                const openaiModel = config.providers.openai?.model || 'gpt-4-turbo';
+                const openaiModel = config.providers.openai?.model || DEFAULT_MODELS.openai;
                 return new OpenAIProvider(apiKey, openaiModel, config.providers.openai?.endpoint);
 
             case 'anthropic':
                 if (!apiKey) {
                     throw new ConfigError('Anthropic API key not found. Run: ownkey config');
                 }
-                const anthropicModel = config.providers.anthropic?.model || 'claude-opus-4-5-20251101';
+                const anthropicModel = config.providers.anthropic?.model || DEFAULT_MODELS.anthropic;
                 return new AnthropicProvider(apiKey, anthropicModel);
 
             case 'ollama':
                 // Ollama doesn't require API key - runs locally
-                const ollamaModel = config.providers.ollama?.model || 'deepseek-coder:latest';
+                const ollamaModel = config.providers.ollama?.model || DEFAULT_MODELS.ollama;
                 const ollamaBaseUrl = config.providers.ollama?.endpoint || 'http://localhost:11434';
                 return new OllamaProvider(undefined, ollamaModel, ollamaBaseUrl);
 
@@ -86,11 +87,11 @@ export class AIProviderFactory {
             case 'gemini':
                 return GeminiProvider.getRecommendedModel();
             case 'openai':
-                return 'gpt-4-turbo';
+                return DEFAULT_MODELS.openai;
             case 'anthropic':
-                return 'claude-opus-4-5-20251101';
+                return DEFAULT_MODELS.anthropic;
             case 'ollama':
-                return 'deepseek-coder:latest';
+                return DEFAULT_MODELS.ollama;
             default:
                 return '';
         }

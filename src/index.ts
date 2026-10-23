@@ -11,12 +11,13 @@ import { scanCommand } from './commands/scan.js';
 import { suggestCommand } from './commands/suggest.js';
 import { applyCommand } from './commands/apply.js';
 import { undoCommand } from './commands/undo.js';
+import { reviewCommand } from './commands/review.js';
 
 const program = new Command();
 
 program
     .name('ownkey')
-    .description('Local-first AI coding agent for intelligent codebase analysis')
+    .description('Local-first AI code reviewer that runs on your own keys')
     .version(createRequire(import.meta.url)('../package.json').version);
 
 // Global options
@@ -29,6 +30,7 @@ program.option('--quiet', 'Suppress non-essential output');
 program.addCommand(configCommand);
 program.addCommand(scanCommand);
 program.addCommand(suggestCommand);
+program.addCommand(reviewCommand);
 program.addCommand(applyCommand);
 program.addCommand(undoCommand);
 

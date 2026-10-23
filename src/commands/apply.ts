@@ -1,5 +1,7 @@
 import { Command } from 'commander';
 import { resolve } from 'path';
+import { spawnSync } from 'child_process';
+import { rollbackBackup } from '../core/backup/index.js';
 import { ApplyEngine, ApplyEngineResult, InteractiveMode } from '../core/apply/index.js';
 import { localStorage, StoredSuggestion } from '../storage/local.js';
 import { meetsSeverity, parseSeverity } from '../utils/severity.js';
@@ -16,6 +18,7 @@ export const applyCommand = new Command('apply')
     .option('--all', 'Apply all pending suggestions for the project')
     .option('--severity <level>', 'With --all: only suggestions at or above this severity (critical, high, medium, low, info)')
     .option('--project <path>', 'Project the suggestions were generated for', '.')
+    .option('--verify <command>', 'Run this command after each apply (e.g. "npm test"); revert automatically if it fails')
     .action(async (suggestionId: string | undefined, options) => {
         try {
             const engine = new ApplyEngine();
@@ -30,6 +33,13 @@ export const applyCommand = new Command('apply')
             if (applyOptions.dryRun) {
                 console.log(chalk.bold.cyan('\n🔍 Dry run: no files will be changed\n'));
             }
+            const verifyCmd: string | undefined = applyOptions.dryRun ? undefined : options.verify;
+            if (verifyCmd && !applyOptions.createBackup) {
+                logger.error('--verify needs a backup to revert to; remove --no-backup.');
+                process.exitCode = 1;
+                return;
+            }
+            let reverted = 0;
 
             if (options.all || (!suggestionId && severity)) {
                 const pending = (await pendingFor(options.project)).filter((s) => meetsSeverity(s.severity, severity));
@@ -44,12 +54,16 @@ export const applyCommand = new Command('apply')
                     console.log(`${chalk.cyan(s.id)} ${chalk.bold(s.type)} (${s.severity}) ${chalk.gray(s.filePath)}`);
                     const result = await engine.applySuggestion(s.id, applyOptions);
                     report(result, applyOptions.dryRun, true);
+                    if (result.success && verifyCmd && !(await verify(verifyCmd, s.projectPath || resolve(options.project), result.backupId))) {
+                        reverted++;
+                        continue;
+                    }
                     if (result.success) applied++;
                     else if (!result.skipped) failed++;
                     if (result.quit) break;
                 }
-                console.log(chalk.bold(`\n${applyOptions.dryRun ? 'Would apply' : 'Applied'}: ${applied}, failed: ${failed}\n`));
-                if (failed > 0) process.exitCode = 1;
+                console.log(chalk.bold(`\n${applyOptions.dryRun ? 'Would apply' : 'Applied'}: ${applied}, failed: ${failed}${verifyCmd ? `, reverted by verify: ${reverted}` : ''}\n`));
+                if (failed > 0 || reverted > 0) process.exitCode = 1;
                 return;
             }
 
@@ -61,11 +75,35 @@ export const applyCommand = new Command('apply')
             const result = await engine.applySuggestion(suggestionId, applyOptions);
             report(result, applyOptions.dryRun, false);
             if (!result.success && !result.skipped) process.exitCode = 1;
+            if (result.success && verifyCmd) {
+                const stored = await localStorage.loadSuggestion(suggestionId).catch(() => null);
+                const ok = await verify(verifyCmd, stored?.projectPath || resolve(options.project), result.backupId);
+                if (!ok) process.exitCode = 1;
+            }
         } catch (error) {
             logger.error('Apply failed', error as Error);
             process.exitCode = 1;
         }
     });
+
+/**
+ * Run the verify command in the project. On failure, roll the apply back. Returns true when it passed.
+ */
+async function verify(command: string, cwd: string, backupId?: string): Promise<boolean> {
+    console.log(chalk.gray(`  Verifying: ${command}`));
+    const run = spawnSync(command, { cwd, shell: true, stdio: 'inherit' });
+    if (run.status === 0) {
+        console.log(chalk.green('  ✓ Verify passed\n'));
+        return true;
+    }
+    if (backupId) {
+        await rollbackBackup(backupId);
+        console.log(chalk.red(`  ✗ Verify failed (exit ${run.status ?? run.signal}); change reverted\n`));
+    } else {
+        console.log(chalk.red(`  ✗ Verify failed (exit ${run.status ?? run.signal}); no backup to revert\n`));
+    }
+    return false;
+}
 
 async function pendingFor(project: string): Promise<StoredSuggestion[]> {
     const suggestions = await localStorage.loadSuggestionsForProject(resolve(project));

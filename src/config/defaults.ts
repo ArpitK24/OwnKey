@@ -1,19 +1,20 @@
 import { Config, LogLevel } from '../types/index.js';
+import { DEFAULT_MODELS } from './models.js';
 
 export const DEFAULT_CONFIG: Config = {
     providers: {
         openai: {
-            model: 'gpt-4-turbo',
+            model: DEFAULT_MODELS.openai,
         },
         anthropic: {
-            model: 'claude-opus-4-5-20251101',
+            model: DEFAULT_MODELS.anthropic,
         },
         gemini: {
-            model: 'gemini-2.5-pro',
+            model: DEFAULT_MODELS.gemini,
         },
         ollama: {
             endpoint: 'http://localhost:11434',
-            model: 'deepseek-coder:latest',
+            model: DEFAULT_MODELS.ollama,
         },
     },
     defaults: {

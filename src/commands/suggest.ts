@@ -4,11 +4,10 @@ import { existsSync } from 'fs';
 import { logger } from '../utils/logger.js';
 import { FileScanner } from '../core/scanner.js';
 import { AIProviderFactory } from '../ai/factory.js';
-import { dbOps } from '../db/operations.js';
 import { dbClient } from '../db/client.js';
 import { CodeContext } from '../types/index.js';
 import chalk from 'chalk';
-import { localStorage } from '../storage/local.js';
+import { persistSuggestions } from '../core/persist.js';
 import { configManager } from '../config/manager.js';
 import { meetsSeverity, parseSeverity } from '../utils/severity.js';
 
@@ -113,39 +112,8 @@ export const suggestCommand = new Command('suggest')
                 console.log();
             }
 
-            // Step 6: Store. Local storage is always written and holds the IDs apply uses;
-            // the optional database mirrors them for history.
-            let localStored: Awaited<ReturnType<typeof localStorage.saveSuggestions>> = [];
-            try {
-                localStored = await localStorage.saveSuggestions(targetPath, projectName, suggestions);
-            } catch (error) {
-                logger.warn(`Failed to save suggestions locally: ${(error as Error).message}`);
-            }
-
-            if (dbClient.isConnected() && suggestions.length > 0) {
-                try {
-                    let project = await dbOps.getProjectByPath(targetPath);
-                    if (!project) {
-                        project = await dbOps.createProject(projectName, targetPath);
-                    }
-                    if (project) {
-                        const run = await dbOps.createRun(project.id, `suggest ${path}`);
-                        for (let i = 0; i < suggestions.length; i++) {
-                            const stored = await dbOps.createSuggestion(project.id, suggestions[i]);
-                            if (stored && run) await dbOps.linkRunSuggestion(run.id, stored.id);
-                            if (stored && localStored[i]) {
-                                await localStorage.updateSuggestion(localStored[i].id, { dbId: stored.id });
-                            }
-                        }
-                        if (run) {
-                            await dbOps.updateRunStatus(run.id, 'completed', `Generated ${suggestions.length} suggestions`);
-                        }
-                        logger.verbose('Saved suggestions to database');
-                    }
-                } catch (error) {
-                    logger.warn(`Database save failed (${(error as Error).message}); suggestions are saved locally.`);
-                }
-            }
+            // Step 6: Store locally (and in the optional database)
+            const localStored = await persistSuggestions(targetPath, projectName, suggestions, `suggest ${path}`);
 
             if (localStored.length > 0) {
                 console.log(chalk.bold('\n🆔 Suggestion IDs\n'));

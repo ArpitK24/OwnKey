@@ -1,5 +1,6 @@
 import { AIProvider } from '../types/index.js';
-import { readFile, writeFile, mkdir } from 'fs/promises';
+import { readFile, writeFile, mkdir, chmod } from 'fs/promises';
+import { randomBytes } from 'crypto';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
@@ -20,7 +21,9 @@ try {
 }
 
 const SERVICE_NAME = 'ownkey-cli';
-const ENCRYPTION_PASSWORD = 'ownkey-local-encryption-key'; // In production, derive from machine ID
+// Keys written by OwnKey <= 1.0.2 used this fixed password. Read-only now, for one-time migration.
+const LEGACY_PASSWORD = 'ownkey-local-encryption-key';
+const MASTER_KEY_FILE = 'master.key';
 
 export class KeychainManager {
     private keysFilePath: string;
@@ -34,8 +37,24 @@ export class KeychainManager {
     private async ensureKeysDir(): Promise<void> {
         const dir = join(homedir(), CONFIG_DIR);
         if (!existsSync(dir)) {
-            await mkdir(dir, { recursive: true });
+            await mkdir(dir, { recursive: true, mode: 0o700 });
         }
+    }
+
+    /**
+     * Per-install random secret (32 bytes, file mode 0600) used to encrypt keys.enc.
+     * Created on first use; never leaves the machine.
+     */
+    private async getMasterKey(create: boolean): Promise<string | null> {
+        const path = join(homedir(), CONFIG_DIR, MASTER_KEY_FILE);
+        if (existsSync(path)) {
+            return (await readFile(path, 'utf-8')).trim();
+        }
+        if (!create) return null;
+        await this.ensureKeysDir();
+        const secret = randomBytes(32).toString('base64');
+        await writeFile(path, secret, { encoding: 'utf-8', mode: 0o600 });
+        return secret;
     }
 
     async setApiKey(provider: AIProvider, apiKey: string): Promise<void> {
@@ -120,20 +139,33 @@ export class KeychainManager {
             return {};
         }
 
+        const encryptedData = await readFile(this.keysFilePath, 'utf-8');
+        const master = await this.getMasterKey(false);
+        if (master) {
+            try {
+                return JSON.parse(await Encryption.decrypt(encryptedData, master));
+            } catch {
+                // fall through to legacy format
+            }
+        }
         try {
-            const encryptedData = await readFile(this.keysFilePath, 'utf-8');
-            const decrypted = await Encryption.decrypt(encryptedData, ENCRYPTION_PASSWORD);
-            return JSON.parse(decrypted);
-        } catch (error) {
-            logger.warn('Failed to decrypt keys file, starting fresh');
+            const keys = JSON.parse(await Encryption.decrypt(encryptedData, LEGACY_PASSWORD));
+            // Migrate from the fixed legacy password to a per-install secret.
+            await this.saveKeysToFile(keys);
+            logger.verbose('Migrated keys file to per-install encryption');
+            return keys;
+        } catch {
+            logger.warn('Could not decrypt ~/.ownkey/keys.enc; run ownkey config to store your key again');
             return {};
         }
     }
 
     private async saveKeysToFile(keys: Record<string, string>): Promise<void> {
-        const json = JSON.stringify(keys);
-        const encrypted = await Encryption.encrypt(json, ENCRYPTION_PASSWORD);
-        await writeFile(this.keysFilePath, encrypted, 'utf-8');
+        await this.ensureKeysDir();
+        const master = (await this.getMasterKey(true)) as string;
+        const encrypted = await Encryption.encrypt(JSON.stringify(keys), master);
+        await writeFile(this.keysFilePath, encrypted, { encoding: 'utf-8', mode: 0o600 });
+        await chmod(this.keysFilePath, 0o600).catch(() => undefined);
     }
 }
 

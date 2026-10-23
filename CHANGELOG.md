@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-10-23
+
+OwnKey becomes a local-first AI code reviewer: review what changed, gate pull requests, and apply fixes that are verified before they stick.
+
+### Added
+
+- `ownkey review`: reviews staged changes, uncommitted work, or a branch against its base (`--base origin/main`). Sends full files for context and the diff as focus, and reports only on changed files.
+- Report formats: `--format text|markdown|json|sarif`, plus `--sarif-output` and `--markdown-output` to write several in one run. SARIF 2.1.0 works with GitHub code scanning.
+- `--fail-on <severity>` for CI gating (exit 1), with exit 2 when a review cannot run.
+- `apply --verify "<command>"`: runs your tests or checks after each apply and reverts automatically on failure.
+- `undo --last`: restores the most recent apply.
+- GitHub Action (`action.yml`): reviews pull requests, posts or updates one summary comment, uploads SARIF, and gates on severity.
+- Re-running a review reuses matching pending suggestions instead of duplicating them.
+
+### Changed
+
+- Default models updated to `gpt-6.1-sol`, `claude-sonnet-5-5`, `gemini-3.8-flash` and `qwen2.5-coder:latest`. Configured models are unchanged.
+- Provider requests match current APIs: OpenAI reasoning-era models get `max_completion_tokens` with no `temperature` (with a one-time retry for compatible endpoints), Claude requests send no sampling parameters and read text after thinking blocks, and Gemini requests JSON output and ignores thought parts.
+
+### Security
+
+- The encrypted key file no longer uses a fixed built-in password. Keys are encrypted with a random per-install secret (`~/.ownkey/master.key`, mode 0600), and existing key files are migrated automatically on first read.
+
 ## [1.0.2] - 2026-10-23
 
 ### Documentation

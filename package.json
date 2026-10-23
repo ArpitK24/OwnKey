@@ -1,7 +1,7 @@
 {
   "name": "ownkey",
-  "version": "1.0.2",
-  "description": "Local-first AI coding agent CLI: scan, suggest, apply and undo with your own keys (OpenAI, Anthropic, Gemini, Ollama)",
+  "version": "1.1.0",
+  "description": "Local-first AI code reviewer CLI: review git changes, gate PRs with SARIF, and apply verified fixes using your own OpenAI, Anthropic, Gemini, or Ollama keys",
   "main": "dist/index.js",
   "bin": {
     "ownkey": "dist/index.js"
@@ -41,7 +41,14 @@
     "refactoring",
     "bug-detection",
     "llm",
-    "developer-tools"
+    "developer-tools",
+    "code-review",
+    "ai-code-review",
+    "sarif",
+    "github-action",
+    "pre-commit",
+    "byok",
+    "ollama"
   ],
   "author": "OwnKey Team",
   "license": "MIT",

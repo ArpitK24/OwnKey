@@ -1,6 +1,7 @@
 import { AIProvider } from './provider.js';
 import type { CodeContext, Suggestion } from '../types/index.js';
 import { logger } from '../utils/logger.js';
+import { DEFAULT_MODELS } from '../config/models.js';
 
 /**
  * Ollama AI Provider
@@ -16,7 +17,7 @@ export class OllamaProvider extends AIProvider {
     }
 
     getDefaultModel(): string {
-        return 'deepseek-coder:latest';
+        return DEFAULT_MODELS.ollama;
     }
 
     async testConnection(): Promise<boolean> {

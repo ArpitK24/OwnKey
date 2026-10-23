@@ -1,10 +1,8 @@
 import { Command } from 'commander';
-import { BackupManager } from '../core/backup/index.js';
-import { dbClient } from '../db/client.js';
+import { BackupManager, rollbackBackup } from '../core/backup/index.js';
 import { logger } from '../utils/logger.js';
 import chalk from 'chalk';
 import inquirer from 'inquirer';
-import { localStorage } from '../storage/local.js';
 
 let assumeYes = false;
 
@@ -22,6 +20,7 @@ export const undoCommand = new Command('undo')
     .description('Undo a previously applied suggestion')
     .argument('[backup-id]', 'Backup ID to restore (optional)')
     .option('--list', 'List recent applies')
+    .option('--last', 'Undo the most recent apply')
     .option('--all', 'Undo all applies from today')
     .option('-y, --yes', 'Skip the confirmation prompt')
     .action(async (backupId, options) => {
@@ -39,6 +38,15 @@ export const undoCommand = new Command('undo')
             if (options.all) {
                 await undoAllToday(backupManager);
                 return;
+            }
+
+            if (options.last) {
+                const latest = (await backupManager.listBackups())[0];
+                if (!latest) {
+                    console.log(chalk.yellow('\n  Nothing to undo.\n'));
+                    return;
+                }
+                backupId = latest.id;
             }
 
             // Undo specific backup
@@ -116,13 +124,7 @@ async function undoBackup(backupManager: BackupManager, backupId: string): Promi
     }
 
     // Restore
-    await backupManager.restore(backupId);
-    await localStorage.clearApplied(backupId).catch(() => undefined);
-
-    // Update database if connected
-    if (dbClient.isConnected()) {
-        await markAsRolledBack(backupId);
-    }
+    await rollbackBackup(backupId, backupManager);
 
     logger.success('Files restored successfully!');
     console.log(chalk.green(`\n✓ Restored ${metadata.files.length + (metadata.created?.length ?? 0)} file(s) from backup\n`));
@@ -162,12 +164,7 @@ async function undoAllToday(backupManager: BackupManager): Promise<void> {
     // Restore in reverse order (newest first)
     for (const backup of todayBackups) {
         console.log(chalk.gray(`\n  Restoring ${backup.id}...`));
-        await backupManager.restore(backup.id);
-        await localStorage.clearApplied(backup.id).catch(() => undefined);
-
-        if (dbClient.isConnected()) {
-            await markAsRolledBack(backup.id);
-        }
+        await rollbackBackup(backup.id, backupManager);
     }
 
     logger.success(`Restored ${todayBackups.length} backup(s)`);
@@ -208,22 +205,6 @@ async function interactiveUndo(backupManager: BackupManager): Promise<void> {
     }
 
     await undoBackup(backupManager, selected);
-}
-
-/**
- * Mark apply as rolled back in database
- */
-async function markAsRolledBack(backupId: string): Promise<void> {
-    const sql = dbClient.getClient();
-    if (!sql) {
-        return;
-    }
-
-    await sql`
-        UPDATE applies
-        SET status = 'rolled_back'
-        WHERE backup_id = ${backupId}
-    `;
 }
 
 /**

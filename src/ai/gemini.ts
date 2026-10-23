@@ -1,6 +1,7 @@
 import { AIProvider } from './provider.js';
 import { CodeContext, Suggestion, AnalyzeOptions, AIProviderError } from '../types/index.js';
 import { logger } from '../utils/logger.js';
+import { DEFAULT_MODELS } from '../config/models.js';
 
 interface GeminiMessage {
     role: 'user' | 'model';
@@ -12,6 +13,7 @@ interface GeminiRequest {
     generationConfig?: {
         temperature?: number;
         maxOutputTokens?: number;
+        responseMimeType?: string;
     };
 }
 
@@ -32,7 +34,7 @@ export class GeminiProvider extends AIProvider {
     private baseUrl = 'https://generativelanguage.googleapis.com/v1';
 
     getDefaultModel(): string {
-        return 'gemini-2.5-pro';
+        return DEFAULT_MODELS.gemini;
     }
 
     async testConnection(): Promise<boolean> {
@@ -68,8 +70,10 @@ export class GeminiProvider extends AIProvider {
                     },
                 ],
                 generationConfig: {
-                    temperature: options?.temperature || 0.3,
-                    maxOutputTokens: options?.maxTokens || 8192,
+                    // Gemini 3.x is tuned for its default temperature; thinking shares the output budget.
+                    ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
+                    maxOutputTokens: options?.maxTokens || 32768,
+                    responseMimeType: 'application/json',
                 },
             };
 
@@ -98,7 +102,10 @@ export class GeminiProvider extends AIProvider {
             }
 
             const candidate = data.candidates[0];
-            const responseText = candidate.content.parts.map((p) => p.text).join('');
+            const responseText = (candidate.content?.parts || [])
+                .filter((p: any) => !p.thought && typeof p.text === 'string')
+                .map((p: any) => p.text)
+                .join('');
 
             logger.verbose('Received response from Gemini');
             logger.debug('Response:', responseText.substring(0, 200) + '...');
@@ -148,10 +155,10 @@ export class GeminiProvider extends AIProvider {
                 )
                 .map((m: any) => m.name.replace('models/', ''));
 
-            return models.length > 0 ? models : ['gemini-2.5-pro', 'gemini-2.5-flash'];
+            return models.length > 0 ? models : [DEFAULT_MODELS.gemini];
         } catch (error) {
             logger.error('Failed to fetch Gemini models:', error as Error);
-            return ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+            return [DEFAULT_MODELS.gemini, 'gemini-3.6-flash', 'gemini-3.5-flash-lite'];
         }
     }
 
@@ -159,6 +166,6 @@ export class GeminiProvider extends AIProvider {
      * Get recommended model for code analysis
      */
     static getRecommendedModel(): string {
-        return 'gemini-2.5-pro';
+        return DEFAULT_MODELS.gemini;
     }
 }

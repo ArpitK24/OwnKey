@@ -15,6 +15,11 @@ export abstract class AIProvider implements AIProviderInterface {
         this.endpoint = endpoint;
     }
 
+    /** The model this provider will call */
+    getModel(): string {
+        return this.model;
+    }
+
     /**
      * Get the default model for this provider
      */
@@ -98,6 +103,14 @@ Be thorough but practical. Focus on high-impact suggestions.`;
             prompt += `\`\`\`${file.extension.slice(1)}\n`;
             prompt += file.content;
             prompt += `\n\`\`\`\n\n`;
+        }
+
+        if (context.reviewPatch) {
+            prompt += `## Changes Under Review\n\n`;
+            prompt += `The files above are shown in full for context. Review ONLY the changes in this diff:\n`;
+            prompt += `report problems introduced or touched by these lines, not pre-existing issues elsewhere.\n\n`;
+            prompt += `\`\`\`diff\n${context.reviewPatch}\n\`\`\`\n\n`;
+            prompt += `Diffs in your suggestions must apply to the full file contents shown above.\n`;
         }
 
         prompt += `\nAnalyze the above code and provide suggestions in JSON format.`;

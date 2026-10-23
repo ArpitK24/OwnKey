@@ -1,0 +1,151 @@
+name: OwnKey Review
+description: AI code review for pull requests on your own model keys. Posts a summary comment and uploads findings to GitHub code scanning.
+author: ArpitK24
+branding:
+  icon: shield
+  color: orange
+
+inputs:
+  provider:
+    description: openai, anthropic, gemini, or ollama
+    required: true
+  api-key:
+    description: Provider API key (pass a secret). Not needed for ollama.
+    required: false
+    default: ''
+  model:
+    description: Model to use. Defaults to OwnKey's current default for the provider.
+    required: false
+    default: ''
+  endpoint:
+    description: Ollama server URL, or an OpenAI-compatible base URL with provider openai.
+    required: false
+    default: ''
+  base:
+    description: Ref to review against. Defaults to the pull request's base branch.
+    required: false
+    default: ''
+  severity:
+    description: Minimum severity to report (critical, high, medium, low, info).
+    required: false
+    default: low
+  fail-on:
+    description: Fail the job when a finding is at or above this severity. Empty never fails.
+    required: false
+    default: ''
+  max-files:
+    description: Maximum changed files to review.
+    required: false
+    default: '25'
+  comment:
+    description: Post or update a summary comment on the pull request.
+    required: false
+    default: 'true'
+  upload-sarif:
+    description: Upload findings to GitHub code scanning (needs security-events write).
+    required: false
+    default: 'true'
+  version:
+    description: OwnKey version to install from npm.
+    required: false
+    default: latest
+
+outputs:
+  findings:
+    description: Number of findings reported.
+    value: ${{ steps.review.outputs.findings }}
+  sarif-file:
+    description: Path to the SARIF report.
+    value: ${{ steps.review.outputs.sarif }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: 20
+
+    - name: Install OwnKey
+      shell: bash
+      run: npm install -g "ownkey@${{ inputs.version }}"
+
+    - name: Configure provider
+      shell: bash
+      env:
+        OWNKEY_NO_KEYCHAIN: '1'
+        OK_PROVIDER: ${{ inputs.provider }}
+        OK_KEY: ${{ inputs.api-key }}
+        OK_MODEL: ${{ inputs.model }}
+        OK_ENDPOINT: ${{ inputs.endpoint }}
+      run: |
+        args=(config --provider "$OK_PROVIDER" --no-database --yes)
+        [ -n "$OK_KEY" ] && args+=(--api-key "$OK_KEY")
+        [ -n "$OK_MODEL" ] && args+=(--model "$OK_MODEL")
+        [ -n "$OK_ENDPOINT" ] && args+=(--endpoint "$OK_ENDPOINT")
+        ownkey "${args[@]}"
+
+    - name: Review changes
+      id: review
+      shell: bash
+      env:
+        OWNKEY_NO_KEYCHAIN: '1'
+        OK_BASE: ${{ inputs.base }}
+        OK_PR_BASE: ${{ github.base_ref }}
+        OK_SEVERITY: ${{ inputs.severity }}
+        OK_FAIL_ON: ${{ inputs.fail-on }}
+        OK_MAX_FILES: ${{ inputs.max-files }}
+      run: |
+        base="$OK_BASE"
+        if [ -z "$base" ] && [ -n "$OK_PR_BASE" ]; then
+          git fetch --no-tags --depth=200 origin "$OK_PR_BASE" >/dev/null 2>&1 || true
+          base="origin/$OK_PR_BASE"
+        fi
+        [ -z "$base" ] && base="HEAD~1"
+        out="$RUNNER_TEMP/ownkey"
+        mkdir -p "$out"
+        args=(review --base "$base" --severity "$OK_SEVERITY" --max-files "$OK_MAX_FILES"
+              --format json --output "$out/report.json"
+              --sarif-output "$out/ownkey.sarif" --markdown-output "$out/ownkey.md")
+        [ -n "$OK_FAIL_ON" ] && args+=(--fail-on "$OK_FAIL_ON")
+        set +e
+        ownkey "${args[@]}"
+        code=$?
+        set -e
+        if [ "$code" -ge 2 ]; then exit "$code"; fi
+        echo "gate=$code" >> "$GITHUB_OUTPUT"
+        echo "findings=$(node -e "console.log(require('$out/report.json').findings.length)")" >> "$GITHUB_OUTPUT"
+        echo "sarif=$out/ownkey.sarif" >> "$GITHUB_OUTPUT"
+        echo "markdown=$out/ownkey.md" >> "$GITHUB_OUTPUT"
+        cat "$out/ownkey.md" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Comment on pull request
+      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPORT: ${{ steps.review.outputs.markdown }}
+      run: |
+        marker='<!-- ownkey-review -->'
+        { echo "$marker"; cat "$REPORT"; } > "$RUNNER_TEMP/ownkey/comment.md"
+        existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
+          --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
+        if [ -n "$existing" ]; then
+          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@"$RUNNER_TEMP/ownkey/comment.md" >/dev/null
+        else
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/ownkey/comment.md"
+        fi
+
+    - name: Upload to code scanning
+      if: ${{ inputs.upload-sarif == 'true' }}
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.review.outputs.sarif }}
+        category: ownkey
+
+    - name: Apply severity gate
+      if: ${{ steps.review.outputs.gate == '1' }}
+      shell: bash
+      run: |
+        echo "::error::OwnKey found issues at or above '${{ inputs.fail-on }}'."
+        exit 1

@@ -79,6 +79,8 @@ export interface CodeContext {
     files: FileContent[];
     projectInfo: ProjectMetadata;
     totalTokens?: number;
+    /** Unified diff under review (ownkey review). When set, the model focuses on these changes. */
+    reviewPatch?: string;
 }
 
 export interface ProjectMetadata {

@@ -22,6 +22,13 @@ class Logger {
         }
     }
 
+    private out: (...args: unknown[]) => void = (...args) => console.log(...args);
+
+    /** Send all log output to stderr so stdout stays clean for machine-readable reports. */
+    useStderr(): void {
+        this.out = (...args) => console.error(...args);
+    }
+
     setLevel(level: LogLevel): void {
         this.level = level;
     }
@@ -49,21 +56,21 @@ class Logger {
 
     info(message: string): void {
         if (this.shouldLog('normal')) {
-            console.log(chalk.blue('ℹ'), message);
+            this.out(chalk.blue('ℹ'), message);
         }
         this.writeToFile(message, 'info');
     }
 
     success(message: string): void {
         if (this.shouldLog('normal')) {
-            console.log(chalk.green('✓'), message);
+            this.out(chalk.green('✓'), message);
         }
         this.writeToFile(message, 'success');
     }
 
     warn(message: string): void {
         if (this.shouldLog('normal')) {
-            console.log(chalk.yellow('⚠'), message);
+            this.out(chalk.yellow('⚠'), message);
         }
         this.writeToFile(message, 'warn');
     }
@@ -80,16 +87,16 @@ class Logger {
 
     verbose(message: string): void {
         if (this.shouldLog('verbose')) {
-            console.log(chalk.gray('→'), message);
+            this.out(chalk.gray('→'), message);
         }
         this.writeToFile(message, 'verbose');
     }
 
     debug(message: string, data?: any): void {
         if (this.shouldLog('debug')) {
-            console.log(chalk.magenta('🐛'), message);
+            this.out(chalk.magenta('🐛'), message);
             if (data) {
-                console.log(chalk.gray(JSON.stringify(data, null, 2)));
+                this.out(chalk.gray(JSON.stringify(data, null, 2)));
             }
         }
         this.writeToFile(`${message} ${data ? JSON.stringify(data) : ''}`, 'debug');
@@ -98,7 +105,7 @@ class Logger {
     spinner(message: string): { succeed: (msg: string) => void; fail: (msg: string) => void } {
         // Simple spinner replacement for ora
         if (this.shouldLog('normal')) {
-            console.log(chalk.cyan('⏳'), message);
+            this.out(chalk.cyan('⏳'), message);
         }
         return {
             succeed: (msg: string) => this.success(msg),

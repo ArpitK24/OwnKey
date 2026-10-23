@@ -1,6 +1,7 @@
 import { AIProvider } from './provider.js';
 import type { CodeContext, Suggestion } from '../types/index.js';
 import { logger } from '../utils/logger.js';
+import { DEFAULT_MODELS, isOpenAIReasoningModel } from '../config/models.js';
 
 export class OpenAIProvider extends AIProvider {
     private baseUrl: string;
@@ -14,7 +15,7 @@ export class OpenAIProvider extends AIProvider {
     }
 
     getDefaultModel(): string {
-        return 'gpt-4-turbo';
+        return DEFAULT_MODELS.openai;
     }
 
     async testConnection(): Promise<boolean> {
@@ -37,6 +38,25 @@ export class OpenAIProvider extends AIProvider {
         }
     }
 
+    /** Chat Completions body; reasoning-era models take max_completion_tokens and no temperature. */
+    private buildBody(prompt: string, reasoning: boolean): Record<string, unknown> {
+        const body: Record<string, unknown> = {
+            model: this.model,
+            messages: [
+                { role: 'system', content: this.getSystemPrompt() },
+                { role: 'user', content: prompt },
+            ],
+        };
+        if (reasoning) {
+            // Reasoning tokens count toward this cap, so leave room beyond the visible answer.
+            body.max_completion_tokens = 32000;
+        } else {
+            body.temperature = 0.3;
+            body.max_tokens = 8192;
+        }
+        return body;
+    }
+
     async *analyze(context: CodeContext): AsyncGenerator<Suggestion> {
         const prompt = this.buildUserPrompt(context);
 
@@ -49,30 +69,31 @@ export class OpenAIProvider extends AIProvider {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`,
                 },
-                body: JSON.stringify({
-                    model: this.model,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: this.getSystemPrompt(),
-                        },
-                        {
-                            role: 'user',
-                            content: prompt,
-                        },
-                    ],
-                    temperature: 0.3,
-                    max_tokens: 8192,
-                }),
+                body: JSON.stringify(this.buildBody(prompt, isOpenAIReasoningModel(this.model))),
             });
-
-            if (!response.ok) {
-                const errorData = await response.json() as any;
+            let res = response;
+            if (res.status === 400) {
+                // Some OpenAI-compatible models reject max_tokens/temperature; retry once in reasoning shape.
+                const text = await res.clone().text();
+                if (/max_tokens|temperature|max_completion_tokens|unsupported/i.test(text)) {
+                    res = await fetch(`${this.baseUrl}/chat/completions`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${this.apiKey}`,
+                        },
+                        body: JSON.stringify(this.buildBody(prompt, !isOpenAIReasoningModel(this.model))),
+                    });
+                }
+            }
+            const response2 = res;
+            if (!response2.ok) {
+                const errorData = await response2.json().catch(() => ({})) as any;
                 logger.error('OpenAI API error:', errorData as Error);
-                throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+                throw new Error(`OpenAI API error: ${errorData.error?.message || response2.statusText}`);
             }
 
-            const data = await response.json() as any;
+            const data = await response2.json() as any;
             const content = data.choices[0]?.message?.content;
 
             if (!content) {
@@ -112,19 +133,12 @@ export class OpenAIProvider extends AIProvider {
                     !m.id.includes('vision')
                 )
                 .map((m: any) => m.id)
-                .sort((a: string, b: string) => {
-                    // Sort by preference: gpt-4-turbo > gpt-4 > gpt-3.5
-                    if (a.includes('4-turbo')) return -1;
-                    if (b.includes('4-turbo')) return 1;
-                    if (a.includes('gpt-4')) return -1;
-                    if (b.includes('gpt-4')) return 1;
-                    return 0;
-                });
+                .sort((a: string, b: string) => b.localeCompare(a, undefined, { numeric: true }));
 
             return models;
         } catch (error) {
             logger.error('Failed to fetch OpenAI models:', error as Error);
-            return ['gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo']; // Fallback
+            return [DEFAULT_MODELS.openai, 'gpt-6-astra', 'gpt-6-luna']; // Fallback
         }
     }
 }

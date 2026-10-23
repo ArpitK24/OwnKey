@@ -1,6 +1,7 @@
 import { AIProvider } from './provider.js';
 import type { CodeContext, Suggestion } from '../types/index.js';
 import { logger } from '../utils/logger.js';
+import { DEFAULT_MODELS } from '../config/models.js';
 
 /**
  * Anthropic Claude AI Provider
@@ -16,7 +17,7 @@ export class AnthropicProvider extends AIProvider {
     }
 
     getDefaultModel(): string {
-        return 'claude-opus-4-5-20251101';
+        return DEFAULT_MODELS.anthropic;
     }
 
     async testConnection(): Promise<boolean> {
@@ -68,8 +69,9 @@ export class AnthropicProvider extends AIProvider {
                 } as any,
                 body: JSON.stringify({
                     model: this.model,
-                    max_tokens: 8192,
-                    temperature: 0.3,
+                    // No temperature: Claude 5.x models reject sampling parameters.
+                    // Adaptive thinking shares this budget, so leave headroom.
+                    max_tokens: 32000,
                     system: this.getSystemPrompt(),
                     messages: [
                         {
@@ -87,7 +89,11 @@ export class AnthropicProvider extends AIProvider {
             }
 
             const data = await response.json() as any;
-            const content = data.content[0]?.text;
+            // Adaptive thinking can put thinking blocks before the text; read text blocks only.
+            const content = (data.content || [])
+                .filter((b: any) => b?.type === 'text' && typeof b.text === 'string')
+                .map((b: any) => b.text)
+                .join('\n');
 
             if (!content) {
                 throw new Error('No content in Anthropic response');
@@ -110,25 +116,13 @@ export class AnthropicProvider extends AIProvider {
      * Returns known models - users can specify any model name in config
      */
     static async getAvailableModels(_apiKey: string): Promise<string[]> {
-        // Return known models as of Jan 2026
+        // Known models as of Oct 2026
         // Users can use ANY model name - this list is just for convenience
         return [
-            // Claude 4.5 (Latest - Nov 2025)
-            'claude-opus-4-5-20251101',       // Opus 4.5 (Recommended - Best for coding)
-            'claude-sonnet-4-5-20251022',     // Sonnet 4.5 (Balanced)
-            'claude-haiku-4-5-20251022',      // Haiku 4.5 (Fast)
-
-            // Claude 3.5 (Legacy)
-            'claude-3-5-sonnet-20241022',     // Sonnet 3.5
-            'claude-3-5-sonnet-20240620',     // Sonnet 3.5 (Older)
-
-            // Claude 3 (Legacy)
-            'claude-3-opus-20240229',         // Opus 3
-            'claude-3-sonnet-20240229',       // Sonnet 3
-            'claude-3-haiku-20240307',        // Haiku 3
-
-            // Future models (5.x, 6.x, etc.) will work automatically
-            // Users just need to specify the model name in config
+            'claude-sonnet-5-5', // balanced default
+            'claude-opus-5-5', // deepest review
+            'claude-haiku-5-5', // fastest, cheapest
+            'claude-fable-5-1',
         ];
     }
 }
