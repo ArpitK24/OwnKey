@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2026-10-23
+
+### Documentation
+
+- Rewrote the README: provider setup, full command and option reference, how apply and undo work, data locations, optional database, and CI usage.
+
+No code changes from 1.0.1.
+
 ## [1.0.1] - 2026-10-23
 
 ### Fixed

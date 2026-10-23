@@ -1,6 +1,6 @@
 {
   "name": "ownkey",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Local-first AI coding agent CLI: scan, suggest, apply and undo with your own keys (OpenAI, Anthropic, Gemini, Ollama)",
   "main": "dist/index.js",
   "bin": {
