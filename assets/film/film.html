@@ -1,0 +1,148 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1280px;height:720px;overflow:hidden;background:#0a0a0c}
+body{font-family:"Instrument Sans","DejaVu Sans",sans-serif;color:#f4f2ec}
+.mono{font-family:"IBM Plex Mono","DejaVu Sans Mono",monospace}
+#stage{position:absolute;inset:0;overflow:hidden}
+.glow{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(255,90,31,.22),rgba(255,90,31,0) 60%);left:190px;top:-420px;filter:blur(10px)}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse at 50% 40%,#000 30%,transparent 75%)}
+.scene{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;opacity:0}
+.brand{display:flex;align-items:center;gap:18px}
+.mark{width:64px;height:64px;border-radius:16px;background:#ff5a1f;display:flex;align-items:center;justify-content:center;color:#0a0a0c;font-weight:700;font-size:30px;box-shadow:0 10px 40px rgba(255,90,31,.35)}
+.word{font-size:58px;font-weight:600;letter-spacing:-1.5px}
+.h1{font-size:64px;font-weight:600;letter-spacing:-2px;line-height:1.05;text-align:center}
+.h1 em{font-style:normal;color:#ff5a1f}
+.sub{margin-top:18px;font-size:22px;color:#a9a59c;text-align:center}
+.kicker{font-size:15px;letter-spacing:3px;text-transform:uppercase;color:#ff5a1f;margin-bottom:22px}
+/* terminal */
+.term{width:1000px;height:520px;border-radius:14px;background:#121215;border:1px solid #26262b;box-shadow:0 40px 120px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.02) inset;overflow:hidden;position:relative}
+.bar{height:42px;display:flex;align-items:center;padding:0 16px;gap:8px;border-bottom:1px solid #222227;background:#16161a}
+.dot{width:12px;height:12px;border-radius:50%;background:#3a3a40}
+.bar .t{margin-left:14px;font-size:13px;color:#7c7a74}
+.body{padding:22px 28px;font-size:17px;line-height:1.62;white-space:pre;color:#d9d6ce}
+.p{color:#ff5a1f}.g{color:#7c7a74}.ok{color:#5fd38d}.bad{color:#ff6b5b}.hi{color:#ffb547}.c{color:#7cc7ff}.b{font-weight:600;color:#fff}
+.cursor{display:inline-block;width:10px;height:20px;background:#ff5a1f;vertical-align:-3px}
+.label{position:absolute;top:56px;left:0;right:0;text-align:center;font-size:15px;letter-spacing:3px;text-transform:uppercase;color:#ff5a1f}
+/* PR card */
+.pr{width:900px;border-radius:14px;background:#0f1117;border:1px solid #2a2f3a;overflow:hidden;box-shadow:0 40px 120px rgba(0,0,0,.6)}
+.prh{padding:16px 22px;border-bottom:1px solid #2a2f3a;display:flex;align-items:center;gap:12px;font-size:15px;color:#9aa3b2}
+.av{width:30px;height:30px;border-radius:50%;background:#ff5a1f;color:#0a0a0c;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px}
+.prb{padding:22px 26px}
+.prb h3{font-size:24px;margin-bottom:6px}
+.prb p{color:#9aa3b2;font-size:16px;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:16px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #232733}
+th{color:#9aa3b2;font-weight:500;font-size:14px}
+.sev{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.sev.h{background:rgba(255,107,91,.15);color:#ff8a7d}
+.sev.m{background:rgba(255,181,71,.15);color:#ffc56b}
+.chips{display:flex;gap:12px;margin-top:22px}
+.chip{border:1px solid #2a2f3a;border-radius:999px;padding:8px 16px;font-size:14px;color:#c9d1dc;display:flex;gap:8px;align-items:center}
+.chip i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.install{margin-top:34px;font-size:26px;padding:16px 28px;border-radius:12px;background:#141417;border:1px solid #2a2a30}
+.prov{margin-top:28px;display:flex;gap:28px;font-size:18px;color:#8d8a82}
+</style></head>
+<body><div id="stage">
+<div class="grid"></div><div class="glow" id="glow"></div>
+
+<div class="scene" id="s1">
+  <div class="brand" id="brand"><div class="mark mono">&gt;_</div><div class="word">OwnKey</div></div>
+  <div class="h1" id="s1h" style="margin-top:46px">Review every change<br><em>before you ship it.</em></div>
+  <div class="sub" id="s1s">The local-first AI code reviewer that runs on your own keys.</div>
+</div>
+
+<div class="scene" id="s2">
+  <div class="label" id="lab2">01 &nbsp;Review what changed</div>
+  <div class="term" id="t2" style="margin-top:40px"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="t mono">~/acme-api &nbsp;·&nbsp; feature/checkout</span></div><div class="body mono" id="b2"></div></div>
+</div>
+
+<div class="scene" id="s3">
+  <div class="label">02 &nbsp;Apply fixes, verified by your tests</div>
+  <div class="term" id="t3" style="margin-top:40px"><div class="bar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="t mono">~/acme-api &nbsp;·&nbsp; feature/checkout</span></div><div class="body mono" id="b3"></div></div>
+</div>
+
+<div class="scene" id="s4">
+  <div class="label">03 &nbsp;Gate every pull request</div>
+  <div class="pr" id="pr" style="margin-top:40px">
+    <div class="prh"><div class="av mono">&gt;_</div><b style="color:#e6edf3">ownkey</b> commented on <span style="color:#e6edf3">#128 Add checkout totals</span></div>
+    <div class="prb">
+      <h3>OwnKey review</h3>
+      <p>2 findings in changes since main: 1 high, 1 medium. Reviewed with <span class="mono">anthropic/claude-sonnet-5-5</span>.</p>
+      <table><tr><th>Severity</th><th>Type</th><th>Location</th><th>Finding</th></tr>
+      <tr id="r1"><td><span class="sev h">high</span></td><td>security</td><td class="mono">src/auth.js:42</td><td>SQL built from user input</td></tr>
+      <tr id="r2"><td><span class="sev m">medium</span></td><td>performance</td><td class="mono">src/cart.js:31</td><td>N+1 query in item loop</td></tr></table>
+      <div class="chips" id="chips"><div class="chip"><i style="background:#ff6b5b"></i>Check failed: findings at or above high</div><div class="chip"><i style="background:#7cc7ff"></i>2 alerts in Code scanning (SARIF)</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="scene" id="s5">
+  <div class="brand"><div class="mark mono">&gt;_</div><div class="word">OwnKey</div></div>
+  <div class="install mono" id="inst"><span class="p">$</span> npm install -g ownkey</div>
+  <div class="prov" id="prov"><span>OpenAI</span><span>Anthropic</span><span>Gemini</span><span>Ollama, fully offline</span></div>
+  <div class="sub" id="s5s" style="margin-top:26px">Your keys. Your models. Your code.</div>
+</div>
+</div>
+<script>
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x));
+const ease=x=>1-Math.pow(1-clamp(x),3);
+const io=(t,a,b,f=.35)=>Math.min(ease((t-a)/f),1-ease((t-(b-f))/f));
+function show(id,t,a,b,dy=24){const e=document.getElementById(id);const v=io(t,a,b);e.style.opacity=v;e.style.transform=`translateY(${(1-ease((t-a)/.5))*dy}px) scale(${.985+.015*ease((t-a)/.6)})`;return v}
+function fade(id,t,a,dur=.4,dy=14){const e=document.getElementById(id);const v=ease((t-a)/dur);e.style.opacity=v;e.style.transform=`translateY(${(1-v)*dy}px)`}
+function typed(s,t,a,cps=26){const n=Math.floor(clamp((t-a)*cps,0,s.length));return s.slice(0,n)}
+const P='<span class="p">$</span> ';
+function termLines(t,a,cmd,lines){ // lines: [time offset, html]
+  const typedCmd=typed(cmd,t,a+.15);
+  let out=P+typedCmd;
+  const done=t>a+.15+cmd.length/26+.15;
+  if(!done) return out+'<span class="cursor"></span>';
+  out+='\n';
+  const t0=a+.15+cmd.length/26+.25;
+  for(const [dt,h] of lines){ if(t>=t0+dt) out+=h+'\n'; }
+  return out+(Math.floor(t*2.2)%2?'<span class="cursor"></span>':'');
+}
+const L2=[
+ [0,'<span class="b">Reviewing 2 file(s) in staged changes</span>'],
+ [.15,'<span class="g">  src/auth.js</span>'],
+ [.25,'<span class="g">  src/cart.js</span>'],
+ [.45,''],
+ [.5,'<span class="g">  Model: anthropic / claude-sonnet-5-5</span>'],
+ [1.15,''],
+ [1.2,'<span class="bad">HIGH    </span> <span class="b">security    </span> <span class="c">src/auth.js:42</span>'],
+ [1.25,'         SQL query built from user input'],
+ [1.55,'<span class="hi">MEDIUM  </span> <span class="b">performance </span> <span class="c">src/cart.js:31</span>'],
+ [1.6,'         N+1 query inside the item loop'],
+ [1.9,''],
+ [1.95,'<span class="b">  2 finding(s).</span><span class="g">  Preview with ownkey apply &lt;id&gt; --dry-run</span>'],
+];
+const L3=[
+ [0,'<span class="g">  src/auth.js   </span>patched, running <span class="b">npm test</span>'],
+ [.55,'<span class="ok">  PASS</span>  42 tests  <span class="g">kept</span>'],
+ [.85,'<span class="g">  src/cart.js   </span>patched, running <span class="b">npm test</span>'],
+ [1.4,'<span class="bad">  FAIL</span>  cart.test.js  <span class="g">reverted from backup</span>'],
+ [1.7,''],
+ [1.75,'<span class="b">  Applied: 1, failed: 0, reverted by verify: 1</span>'],
+ [2.0,'<span class="g">  Changed your mind? ownkey undo --last</span>'],
+];
+function render(t){
+  document.getElementById('glow').style.transform=`translate(${Math.sin(t*.5)*60}px,${Math.cos(t*.4)*30}px)`;
+  // S1 0-2.6
+  show('s1',t,0,2.6,0);
+  fade('brand',t,.1,.6);fade('s1h',t,.45,.6,20);fade('s1s',t,.9,.6);
+  // S2 2.6-7.7
+  show('s2',t,2.6,7.7);
+  document.getElementById('b2').innerHTML=termLines(t,2.9,'ownkey review --staged',L2);
+  // S3 7.7-11.4
+  show('s3',t,7.7,11.4);
+  document.getElementById('b3').innerHTML=termLines(t,7.95,'ownkey apply --all --verify "npm test"',L3);
+  // S4 11.4-14.6
+  show('s4',t,11.4,14.6);
+  fade('r1',t,11.9,.4,8);fade('r2',t,12.15,.4,8);fade('chips',t,12.5,.45,8);
+  // S5 14.6-17.5 (fade out to loop)
+  const v=show('s5',t,14.6,17.6,0);
+  fade('inst',t,14.9,.5);fade('prov',t,15.3,.5);fade('s5s',t,15.6,.5);
+}
+window.render=render;render(0);
+</script></body></html>

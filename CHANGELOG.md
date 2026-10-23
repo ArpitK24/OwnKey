@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2] - 2026-10-23
+
+### Documentation
+
+- README opens with a short product demo (review, verified apply, PR gate) in place of the logo image. Source for the film is in `assets/film`.
+
 ## [1.1.1] - 2026-10-23
 
 ### Fixed
