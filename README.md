@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/ArpitK24/OwnKey/main/assets/logo.png" alt="OwnKey" width="420">
-</p>
+<h1 align="center">OwnKey</h1>
 
 <h3 align="center">The local-first AI code reviewer that runs on your own keys.</h3>
 
@@ -20,6 +18,11 @@
   <a href="https://ownkey.qzz.io/docs/getting-started">Quick start</a> &nbsp;&middot;&nbsp;
   <a href="https://ownkey.qzz.io/docs/commands">CLI reference</a> &nbsp;&middot;&nbsp;
   <a href="https://github.com/ArpitK24/OwnKey/blob/main/CHANGELOG.md">Changelog</a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/ArpitK24/OwnKey/blob/main/assets/ownkey-demo.mp4"><img src="https://raw.githubusercontent.com/ArpitK24/OwnKey/main/assets/ownkey-demo.gif" alt="OwnKey reviewing staged changes, applying a fix verified by tests, and commenting on a pull request" width="880"></a>
+  <br><sub><a href="https://github.com/ArpitK24/OwnKey/blob/main/assets/ownkey-demo.mp4">Watch in 1080p</a></sub>
 </p>
 
 ---
