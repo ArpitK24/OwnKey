@@ -9,6 +9,8 @@ const ROOT = resolve(__dirname, '..', '..');
 const ENTRY = join(ROOT, 'src', 'index.ts');
 // Resolve tsx from the repo so the CLI can run from any cwd
 const TSX = pathToFileURL(createRequire(join(ROOT, 'package.json')).resolve('tsx')).href;
+// Generous: CI runners and busy laptops can be slow to start a TypeScript process.
+const SPAWN_TIMEOUT_MS = Number(process.env.OWNKEY_TEST_SPAWN_TIMEOUT_MS) || 60_000;
 
 export function makeHome(): string {
     const home = mkdtempSync(join(tmpdir(), 'ownkey-home-'));
@@ -38,10 +40,16 @@ export function ownkey(
         child.stdout.on('data', (d) => (stdout += d));
         child.stderr.on('data', (d) => (stderr += d));
         child.stdin.end(opts.input ?? '');
-        const timer = setTimeout(() => child.kill('SIGKILL'), 25000);
+        let timedOut = false;
+        const timer = setTimeout(() => {
+            timedOut = true;
+            child.kill('SIGKILL');
+        }, SPAWN_TIMEOUT_MS);
         child.on('error', reject);
         child.on('close', (code) => {
             clearTimeout(timer);
+            // Say so plainly instead of surfacing a bare `code: null`
+            if (timedOut) stderr += `\n[test helper] ownkey ${args.join(' ')} was killed after ${SPAWN_TIMEOUT_MS / 1000}s\n`;
             resolvePromise({ code, stdout, stderr, out: `${stdout}\n${stderr}` });
         });
     });
