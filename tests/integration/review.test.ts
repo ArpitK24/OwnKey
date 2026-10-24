@@ -114,6 +114,37 @@ describe('ownkey review', () => {
         expect(readFileSync(join(repo, 'src', 'total.js'), 'utf-8')).toBe(BUGGY);
     });
 
+    it('investigates the repository with tools before reporting', async () => {
+        git(repo, 'checkout', '-qf', 'main');
+        writeFileSync(join(repo, 'src', 'total.js'), BUGGY);
+        mock.state.requests = [];
+        mock.state.script = [
+            JSON.stringify({ calls: [{ tool: 'search', pattern: 'i <= items' }, { tool: 'read_file', path: 'src/untouched.js' }, { tool: 'read_file', path: '.env' }] }),
+            reply,
+        ];
+        const r = await ownkey(['review', '--format', 'json'], { home, cwd: repo });
+        expect(r.code).toBe(0);
+        expect(r.stderr).toContain('↳ search /i <= items/');
+        expect(r.stderr).toContain('↳ read src/untouched.js');
+        expect(mock.state.requests).toHaveLength(2);
+        expect(mock.state.requests[1].url).toBe('/api/chat');
+        const toolTurn = mock.state.requests[1].messages.at(-1).content as string;
+        expect(toolTurn).toContain('src/total.js:3:');
+        expect(toolTurn).toContain('export const x = 1;');
+        expect(toolTurn).toContain('.env is not an available file');
+        expect(JSON.parse(r.stdout).findings.map((f: any) => f.filePath)).toEqual(['src/total.js']);
+    });
+
+    it('--quick sends a single request with no tools', async () => {
+        mock.state.requests = [];
+        mock.state.script = [];
+        const r = await ownkey(['review', '--quick', '--format', 'json'], { home, cwd: repo });
+        expect(r.code).toBe(0);
+        expect(mock.state.requests).toHaveLength(1);
+        expect(mock.state.requests[0].system).not.toContain('Working as an agent');
+        git(repo, 'checkout', '--', 'src/total.js');
+    });
+
     it('explains when run outside a git repository', async () => {
         const r = await ownkey(['review'], { home, cwd: home });
         expect(r.code).toBe(2);

@@ -17,6 +17,12 @@ describe('review helpers', () => {
         expect(anchorLine({ diff: '' } as any)).toBe(1);
     });
 
+    it('prefers the line the model named over its diff', () => {
+        const diff = ['--- a/a.ts', '+++ b/a.ts', '@@ -5,4 +5,4 @@', ' keep', ' keep', '-old', '+new'].join('\n');
+        expect(anchorLine({ diff, line: 9 } as any)).toBe(9);
+        expect(anchorLine({ diff: '', line: 3 } as any, [[12, 14]])).toBe(3);
+    });
+
     it('sorts by severity, then file, then line', () => {
         const f = (severity: string, filePath: string, line: number) => ({ severity, filePath, line }) as any;
         const sorted = sortFindings([f('low', 'a', 1), f('critical', 'b', 9), f('critical', 'a', 5)]);

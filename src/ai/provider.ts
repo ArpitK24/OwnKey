@@ -1,5 +1,11 @@
 import { CodeContext, Suggestion, AnalyzeOptions, AIProviderInterface } from '../types/index.js';
 
+/** One turn of a multi-turn conversation with the model. */
+export interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
 /**
  * Base abstract class for AI providers
  * All providers (OpenAI, Gemini, Anthropic, Ollama) must implement this interface
@@ -31,20 +37,23 @@ export abstract class AIProvider implements AIProviderInterface {
     abstract testConnection(): Promise<boolean>;
 
     /**
-     * Analyze code and generate suggestions
-     * @param context - Code context with files and project info
-     * @param options - Analysis options (streaming, max tokens, etc.)
-     * @returns AsyncGenerator yielding suggestions as they're generated
+     * Send a conversation to the model and return its text reply.
+     * Every provider implements this; one-shot analysis and the review agent both build on it.
      */
-    abstract analyze(
-        context: CodeContext,
-        options?: AnalyzeOptions
-    ): AsyncGenerator<Suggestion>;
+    abstract chat(system: string, messages: ChatMessage[], options?: AnalyzeOptions): Promise<string>;
+
+    /**
+     * Analyze code in one request and yield suggestions
+     */
+    async *analyze(context: CodeContext, options?: AnalyzeOptions): AsyncGenerator<Suggestion> {
+        const text = await this.chat(this.getSystemPrompt(), [{ role: 'user', content: this.buildUserPrompt(context) }], options);
+        for (const suggestion of this.parseSuggestions(text)) yield suggestion;
+    }
 
     /**
      * Format the system prompt for code analysis
      */
-    protected getSystemPrompt(): string {
+    getSystemPrompt(): string {
         return `You are a senior software engineer performing code review and analysis.
 
 Your task is to analyze the provided codebase and identify:
@@ -62,6 +71,7 @@ Guidelines:
 - Use unified diff format for code changes
 - Categorize suggestions by type and severity
 - "filePath" must be the file's path relative to the project root, exactly as written in its "###" heading
+- "line" is the 1-based line number in that file where the problem is (the line a reviewer would comment on)
 - "diff" must be a unified diff for that one file: "--- a/<filePath>", "+++ b/<filePath>", then "@@" hunks
   with 2-3 unchanged context lines copied exactly from the file (same indentation)
 - If you cannot produce an exact diff, omit the suggestion
@@ -73,6 +83,7 @@ Return a JSON array of suggestions. Each suggestion must have:
   "severity": "critical" | "high" | "medium" | "low" | "info",
   "content": "Brief description of the issue",
   "filePath": "path/to/file.ts",
+  "line": 42,
   "rationale": "Detailed explanation of why this matters",
   "diff": "Unified diff format showing the change"
 }
@@ -83,7 +94,7 @@ Be thorough but practical. Focus on high-impact suggestions.`;
     /**
      * Build the user prompt with code context
      */
-    protected buildUserPrompt(context: CodeContext): string {
+    buildUserPrompt(context: CodeContext): string {
         let prompt = `# Project Analysis Request\n\n`;
         prompt += `**Project:** ${context.projectInfo.name}\n`;
         prompt += `**Path:** ${context.projectInfo.rootPath}\n`;
@@ -121,7 +132,7 @@ Be thorough but practical. Focus on high-impact suggestions.`;
     /**
      * Parse AI response and extract suggestions
      */
-    protected parseSuggestions(response: string): Suggestion[] {
+    parseSuggestions(response: string): Suggestion[] {
         const parsed = AIProvider.extractJson(response);
         const list: any[] | null = Array.isArray(parsed)
             ? parsed
@@ -145,8 +156,15 @@ Be thorough but practical. Focus on high-impact suggestions.`;
                 filePath: s.filePath || s.file || '',
                 rationale: s.rationale || '',
                 diff: typeof s.diff === 'string' ? s.diff : '',
+                line: AIProvider.parseLine(s.line ?? s.lineNumber ?? s.startLine),
                 tags: s.tags,
             }));
+    }
+
+    /** A positive integer line number from a model reply, or undefined. */
+    static parseLine(value: unknown): number | undefined {
+        const n = typeof value === 'number' ? value : typeof value === 'string' ? parseInt(value, 10) : NaN;
+        return Number.isInteger(n) && n > 0 ? n : undefined;
     }
 
     /**

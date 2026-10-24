@@ -1,5 +1,5 @@
-import { AIProvider } from './provider.js';
-import { CodeContext, Suggestion, AnalyzeOptions, AIProviderError } from '../types/index.js';
+import { AIProvider, type ChatMessage } from './provider.js';
+import { AnalyzeOptions, AIProviderError } from '../types/index.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_MODELS } from '../config/models.js';
 
@@ -52,23 +52,18 @@ export class GeminiProvider extends AIProvider {
         }
     }
 
-    async *analyze(context: CodeContext, options?: AnalyzeOptions): AsyncGenerator<Suggestion> {
+    async chat(system: string, messages: ChatMessage[], options?: AnalyzeOptions): Promise<string> {
         try {
-            logger.verbose(`Analyzing with Gemini (${this.model})...`);
+            logger.verbose(`Calling Gemini (${this.model})...`);
 
-            const systemPrompt = this.getSystemPrompt();
-            const userPrompt = this.buildUserPrompt(context);
+            // The system prompt rides as the first part of the first user turn, as before
+            const contents: GeminiMessage[] = messages.map((m, i) => ({
+                role: m.role === 'assistant' ? 'model' : 'user',
+                parts: i === 0 ? [{ text: system }, { text: m.content }] : [{ text: m.content }],
+            }));
 
             const request: GeminiRequest = {
-                contents: [
-                    {
-                        role: 'user',
-                        parts: [
-                            { text: systemPrompt },
-                            { text: userPrompt },
-                        ],
-                    },
-                ],
+                contents,
                 generationConfig: {
                     // Gemini 3.x is tuned for its default temperature; thinking shares the output budget.
                     ...(options?.temperature !== undefined ? { temperature: options.temperature } : {}),
@@ -110,15 +105,7 @@ export class GeminiProvider extends AIProvider {
             logger.verbose('Received response from Gemini');
             logger.debug('Response:', responseText.substring(0, 200) + '...');
 
-            // Parse suggestions from response
-            const suggestions = this.parseSuggestions(responseText);
-
-            logger.success(`Generated ${suggestions.length} suggestions`);
-
-            // Yield suggestions one by one (simulating streaming)
-            for (const suggestion of suggestions) {
-                yield suggestion;
-            }
+            return responseText;
         } catch (error) {
             if (error instanceof AIProviderError) {
                 throw error;

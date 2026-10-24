@@ -102,6 +102,24 @@ ownkey undo --list                    # recent applies
 
 For a whole-project audit of any folder, git or not, use `ownkey suggest .`
 
+## How a review works
+
+OwnKey sends the model your changed files and the diff, then lets it investigate before it answers, much like a teammate who opens a few files before leaving a comment. With read-only tools, it can:
+
+- read any file in the repository, with line numbers
+- search the codebase with a regular expression
+- list a folder
+
+Each step is printed as it happens:
+
+```text
+  Investigating the repository before reporting...
+  ↳ search /findOrder\(/
+  ↳ read src/orders.ts
+```
+
+That's how it catches bugs that only show up across files, such as a lookup that can return `undefined`, a value in cents compared against dollars, or an async loader used without `await`. It also stays quiet about code that is already guarded elsewhere. Files ignored by `.gitignore` or `.ownkeyignore` are never readable. Use `--max-steps <n>` to cap the investigation (default 6 rounds), or `--quick` for the old single-pass review.
+
 ## Interactive session
 
 Run `ownkey` with no arguments in any project folder and it opens a session for that folder. The header shows the repository, branch, how many files changed, and which model is reviewing. Then type any command without the `ownkey` prefix:
@@ -231,7 +249,20 @@ ownkey bench --model claude-opus-5-5          # compare another model on the sam
 ownkey bench --format markdown --output bench.md
 ```
 
-It reports **recall** (planted bugs reported within 3 lines of the defect with a matching type), **precision** (matching findings over all findings at medium or above), and how many controls stayed clean. Low and info findings never count against a model. Bench runs in temporary directories and stores nothing, but it does send every case to your provider, so a full run costs about 15 small review calls.
+It reports **recall** (planted bugs reported within 3 lines of the defect with a matching type), **precision** (matching findings over all findings at medium or above), and how many controls stayed clean. Low and info findings never count against a model. Bench runs in temporary directories and stores nothing, but it does send every case to your provider. A full run is 19 cases: one call each with `--quick`, a few each in agentic mode.
+
+### Results
+
+One run of all 19 cases (15 bugs, 4 controls) on Ollama Cloud, 2026-10-24, OwnKey 1.4.0:
+
+| Model | Mode | Recall | Precision | Controls with false alarms |
+|---|---|---|---|---|
+| `gpt-oss:120b` | agentic | 15/15 | 0.60 | 2 of 4 |
+| `gpt-oss:120b` | quick | 14/15 | 0.44 | 4 of 4 |
+| `gemma4:31b` | agentic | 14/15 | 0.88 | 1 of 4 |
+| `gemma4:31b` | quick | 15/15 | 0.76 | 4 of 4 |
+
+Both models catch nearly every planted bug either way. Investigating first mostly cuts noise: on correct changes, the agentic reviewer flagged half or fewer of the controls, against all four in a single pass. A single run on 19 small cases is a smoke test, not a leaderboard, so run `ownkey bench` on your own model before you rely on it.
 
 ## Providers
 
@@ -241,6 +272,7 @@ It reports **recall** (planted bugs reported within 3 lines of the defect with a
 | Anthropic | `--provider anthropic --api-key <key>` | `claude-sonnet-5-5` |
 | Google Gemini | `--provider gemini --api-key <key>` | `gemini-3.8-flash` |
 | Ollama | `--provider ollama [--endpoint http://host:11434]` | `qwen2.5-coder:latest` |
+| Ollama Cloud | `--provider ollama --endpoint https://ollama.com --model gpt-oss:120b`, with `OLLAMA_API_KEY` set | Set with `--model` |
 | OpenAI-compatible | `--provider openai --endpoint <base-url> --api-key <key>` | Set with `--model` |
 
 Defaults are mid-tier models chosen for review quality per dollar. Override with `--model`, for example `gpt-6-astra` or `claude-opus-5-5` for the deepest review. OwnKey sends each model the request shape it expects, including reasoning-era OpenAI models and Claude's adaptive thinking.

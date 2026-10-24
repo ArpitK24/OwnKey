@@ -1,5 +1,4 @@
-import { AIProvider } from './provider.js';
-import type { CodeContext, Suggestion } from '../types/index.js';
+import { AIProvider, type ChatMessage } from './provider.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_MODELS, isOpenAIReasoningModel } from '../config/models.js';
 
@@ -39,13 +38,10 @@ export class OpenAIProvider extends AIProvider {
     }
 
     /** Chat Completions body; reasoning-era models take max_completion_tokens and no temperature. */
-    private buildBody(prompt: string, reasoning: boolean): Record<string, unknown> {
+    private buildBody(system: string, messages: ChatMessage[], reasoning: boolean): Record<string, unknown> {
         const body: Record<string, unknown> = {
             model: this.model,
-            messages: [
-                { role: 'system', content: this.getSystemPrompt() },
-                { role: 'user', content: prompt },
-            ],
+            messages: [{ role: 'system', content: system }, ...messages],
         };
         if (reasoning) {
             // Reasoning tokens count toward this cap, so leave room beyond the visible answer.
@@ -57,11 +53,10 @@ export class OpenAIProvider extends AIProvider {
         return body;
     }
 
-    async *analyze(context: CodeContext): AsyncGenerator<Suggestion> {
-        const prompt = this.buildUserPrompt(context);
+    async chat(system: string, messages: ChatMessage[]): Promise<string> {
 
         try {
-            logger.verbose(`Analyzing with OpenAI (${this.model})...`);
+            logger.verbose(`Calling OpenAI (${this.model})...`);
 
             const response = await fetch(`${this.baseUrl}/chat/completions`, {
                 method: 'POST',
@@ -69,7 +64,7 @@ export class OpenAIProvider extends AIProvider {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${this.apiKey}`,
                 },
-                body: JSON.stringify(this.buildBody(prompt, isOpenAIReasoningModel(this.model))),
+                body: JSON.stringify(this.buildBody(system, messages, isOpenAIReasoningModel(this.model))),
             });
             let res = response;
             if (res.status === 400) {
@@ -82,7 +77,7 @@ export class OpenAIProvider extends AIProvider {
                             'Content-Type': 'application/json',
                             'Authorization': `Bearer ${this.apiKey}`,
                         },
-                        body: JSON.stringify(this.buildBody(prompt, !isOpenAIReasoningModel(this.model))),
+                        body: JSON.stringify(this.buildBody(system, messages, !isOpenAIReasoningModel(this.model))),
                     });
                 }
             }
@@ -100,11 +95,7 @@ export class OpenAIProvider extends AIProvider {
                 throw new Error('No content in OpenAI response');
             }
 
-            // Parse suggestions from response
-            const suggestions = this.parseSuggestions(content);
-            for (const suggestion of suggestions) {
-                yield suggestion;
-            }
+            return content;
         } catch (error) {
             logger.error('OpenAI analysis error:', error as Error);
             throw error;

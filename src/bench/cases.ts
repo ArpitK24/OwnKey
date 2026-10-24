@@ -7,6 +7,9 @@ import type { SuggestionType } from '../types/index.js';
  * A bug case plants exactly one defect in the change; `expect.needle` is a substring of the
  * line that carries it. A control case is a correct change: anything the reviewer reports
  * there at medium severity or above counts as a false alarm.
+ *
+ * Cross-file cases (ids starting with "cross-") can only be judged by reading a file the change does not
+ * touch, which is what the agentic reviewer's repository tools are for.
  */
 export interface BenchCase {
     id: string;
@@ -15,6 +18,8 @@ export interface BenchCase {
     file: string;
     base: string;
     changed: string;
+    /** Other files committed with the base and left unchanged (cross-file cases need them) */
+    context?: Record<string, string>;
     /** Absent for control cases */
     expect?: {
         needle: string;
@@ -373,6 +378,139 @@ export const BENCH_CASES: BenchCase[] = [
             'export function greet(user: User | undefined): string {',
             "    if (!user) return 'Hello, guest';",
             '    return `Hello, ${user.name}`;',
+            '}',
+        ),
+    },
+    {
+        id: 'cross-null-return',
+        title: 'Cross-file: lookup that can return undefined used directly',
+        language: 'typescript',
+        file: 'src/checkout.ts',
+        context: {
+            'src/orders.ts': lines(
+                'export interface Order { id: string; total: number }',
+                '',
+                'const orders = new Map<string, Order>();',
+                '',
+                '/** Returns undefined when the order does not exist or has expired. */',
+                'export function findOrder(id: string): Order | undefined {',
+                '    return orders.get(id);',
+                '}',
+            ),
+        },
+        base: lines(
+            "import { findOrder } from './orders';",
+            '',
+            'export const TAX = 0.18;',
+        ),
+        changed: lines(
+            "import { findOrder } from './orders';",
+            '',
+            'export const TAX = 0.18;',
+            '',
+            'export function totalWithTax(orderId: string): number {',
+            '    const order = findOrder(orderId);',
+            '    return order.total * (1 + TAX);',
+            '}',
+        ),
+        expect: { needle: 'order.total * (1 + TAX)', types: ['bug'] },
+    },
+    {
+        id: 'cross-unit-mismatch',
+        title: 'Cross-file: price in cents compared against dollars',
+        language: 'javascript',
+        file: 'src/shipping.js',
+        context: {
+            'src/pricing.js': lines(
+                '// All prices in this module are integers in cents (e.g. 1999 = $19.99).',
+                'const PRICES = { tee: 1999, hoodie: 4999, jacket: 12999 };',
+                '',
+                'export function cartTotal(items) {',
+                '    return items.reduce((sum, i) => sum + PRICES[i.sku] * i.qty, 0);',
+                '}',
+            ),
+        },
+        base: lines(
+            "import { cartTotal } from './pricing.js';",
+            '',
+            'export const SHIPPING_FEE = 499;',
+        ),
+        changed: lines(
+            "import { cartTotal } from './pricing.js';",
+            '',
+            'export const SHIPPING_FEE = 499;',
+            '',
+            '// Free shipping on orders over $50',
+            'export function shippingFor(items) {',
+            '    if (cartTotal(items) > 50) return 0;',
+            '    return SHIPPING_FEE;',
+            '}',
+        ),
+        expect: { needle: 'cartTotal(items) > 50', types: ['bug'] },
+    },
+    {
+        id: 'cross-missing-await',
+        title: 'Cross-file: async loader used without await',
+        language: 'typescript',
+        file: 'src/server.ts',
+        context: {
+            'src/config.ts': lines(
+                "import { readFile } from 'fs/promises';",
+                '',
+                'export interface Config { port: number; debug: boolean }',
+                '',
+                'export async function loadConfig(): Promise<Config> {',
+                "    return JSON.parse(await readFile('config.json', 'utf-8'));",
+                '}',
+            ),
+        },
+        base: lines(
+            "import { loadConfig } from './config';",
+            '',
+            'export function start() {}',
+        ),
+        changed: lines(
+            "import { loadConfig } from './config';",
+            '',
+            'export function start() {',
+            '    const config = loadConfig();',
+            '    if (config.debug) console.log(`listening on ${config.port}`);',
+            '}',
+        ),
+        expect: { needle: 'const config = loadConfig()', types: ['bug'] },
+    },
+    {
+        id: 'clean-cross-guard',
+        title: 'Control (cross-file): lookup that already throws when missing',
+        language: 'typescript',
+        file: 'src/invoice.ts',
+        context: {
+            'src/orders.ts': lines(
+                'export interface Order { id: string; total: number }',
+                '',
+                'const orders = new Map<string, Order>();',
+                '',
+                '/** Never returns undefined: throws NotFoundError when the order does not exist. */',
+                'export function getOrder(id: string): Order {',
+                '    const order = orders.get(id);',
+                "    if (!order) throw new Error(`Order ${id} not found`);",
+                '    return order;',
+                '}',
+            ),
+        },
+        base: lines(
+            "import { getOrder } from './orders';",
+            '',
+            'export const VAT = 0.2;',
+        ),
+        changed: lines(
+            "import { getOrder } from './orders';",
+            '',
+            'export const VAT = 0.2;',
+            '',
+            'export function invoiceTotal(orderId: string): number {',
+            '    const order = getOrder(orderId);',
+            '    return Math.round(order.total * (1 + VAT) * 100) / 100;',
             '}',
         ),
     },

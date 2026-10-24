@@ -1,5 +1,4 @@
-import { AIProvider } from './provider.js';
-import type { CodeContext, Suggestion } from '../types/index.js';
+import { AIProvider, type ChatMessage } from './provider.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_MODELS } from '../config/models.js';
 
@@ -54,11 +53,10 @@ export class AnthropicProvider extends AIProvider {
         }
     }
 
-    async *analyze(context: CodeContext): AsyncGenerator<Suggestion> {
-        const prompt = this.buildUserPrompt(context);
+    async chat(system: string, messages: ChatMessage[]): Promise<string> {
 
         try {
-            logger.verbose(`Analyzing with Anthropic (${this.model})...`);
+            logger.verbose(`Calling Anthropic (${this.model})...`);
 
             const response = await fetch(`${this.baseUrl}/messages`, {
                 method: 'POST',
@@ -72,13 +70,8 @@ export class AnthropicProvider extends AIProvider {
                     // No temperature: Claude 5.x models reject sampling parameters.
                     // Adaptive thinking shares this budget, so leave headroom.
                     max_tokens: 32000,
-                    system: this.getSystemPrompt(),
-                    messages: [
-                        {
-                            role: 'user',
-                            content: prompt,
-                        },
-                    ],
+                    system,
+                    messages,
                 }),
             });
 
@@ -99,11 +92,7 @@ export class AnthropicProvider extends AIProvider {
                 throw new Error('No content in Anthropic response');
             }
 
-            // Parse suggestions from response
-            const suggestions = this.parseSuggestions(content);
-            for (const suggestion of suggestions) {
-                yield suggestion;
-            }
+            return content;
         } catch (error) {
             logger.error('Anthropic analysis error:', error as Error);
             throw error;
