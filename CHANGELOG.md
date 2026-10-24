@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-10-24
+
+### Added
+
+- Interactive session: run `ownkey` with no arguments in a project to open a prompt for that folder. The header shows the repository, branch, number of changed files, and the active provider and model. Commands are typed without the `ownkey` prefix, with Tab completion for commands and flags, a command menu, and persistent history in `~/.ownkey/history`. Commands run as child processes on the real terminal, so prompts, colors, and Ctrl+C behave exactly as in a shell.
+- The session only starts for a person at a terminal. Pipes, scripts, CI (`CI` set), and `OWNKEY_NO_UI=1` keep the plain help output, and every subcommand is unchanged.
+
+### Dependencies
+
+- `ink` 5 and `react` 18 for the session UI. They are loaded only when the session starts, so scripted runs don't pay for them.
+
 ## [1.2.0] - 2026-10-24
 
 ### Added

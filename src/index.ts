@@ -67,5 +67,18 @@ program.hook('postAction', async () => {
     await dbClient.disconnect();
 });
 
-// Parse arguments
-await program.parseAsync();
+// A bare `ownkey` at a terminal opens the interactive session, where commands are typed
+// without the prefix. Scripts, CI, pipes and every subcommand behave exactly as before.
+const interactive = process.argv.length <= 2 && !process.env.OWNKEY_NO_UI && !process.env.CI && process.stdin.isTTY && process.stdout.isTTY;
+
+if (interactive) {
+    const { startSession } = await import('./ui/session.js');
+    const commands = program.commands.map((c) => ({
+        name: c.name(),
+        description: c.description(),
+        options: c.options.map((o) => ({ flags: o.flags, description: o.description })),
+    }));
+    await startSession(commands, program.version() ?? '');
+} else {
+    await program.parseAsync();
+}

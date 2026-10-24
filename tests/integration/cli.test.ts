@@ -71,6 +71,12 @@ describe('ownkey CLI', () => {
         await mock.close();
     });
 
+    it('keeps plain help for a bare ownkey outside a terminal', async () => {
+        const r = await ownkey([], { home });
+        expect(r.out).toContain('Usage: ownkey');
+        expect(r.out).not.toContain('Tab complete');
+    });
+
     it('prints help and version', async () => {
         const help = (await ownkey(['--help'], { home }));
         expect(help.code).toBe(0);
