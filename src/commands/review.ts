@@ -3,6 +3,8 @@ import { basename, resolve } from 'path';
 import { writeFile } from 'fs/promises';
 import { createRequire } from 'module';
 import chalk from 'chalk';
+import { KeeperStatus, keeperPose } from '../ui/keeper-term.js';
+import { keeperShown, reportKeeperMood } from '../ui/keeper.js';
 import { logger } from '../utils/logger.js';
 import { AIProviderFactory } from '../ai/factory.js';
 import { configManager } from '../config/manager.js';
@@ -72,12 +74,17 @@ export const reviewCommand = new Command('review')
             const model = provider.getModel();
             say(chalk.gray(`\n  Model: ${config.activeProvider} / ${model}\n`));
 
-            if (!options.quick) say(chalk.gray('  Investigating the repository before reporting...'));
-            const onStep = (step: { label: string }) => say(chalk.gray(`  ↳ ${step.label}`));
+            const status = new KeeperStatus(machine ? process.stderr : process.stdout);
+            status.start(options.quick ? 'Reviewing the changes' : 'Investigating the repository before reporting');
+            const onStep = (step: { label: string }) => status.step(step.label);
             const maxSteps = Math.max(0, parseInt(options.maxSteps, 10) || 0);
-            const kept = (await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep }))
-                .filter((s) => !typeFilter || s.type === typeFilter)
-                .filter((s) => meetsSeverity(s.severity, minSeverity));
+            let analyzed: Awaited<ReturnType<typeof analyzeChanges>>;
+            try {
+                analyzed = await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep });
+            } finally {
+                status.stop();
+            }
+            const kept = analyzed.filter((s) => !typeFilter || s.type === typeFilter).filter((s) => meetsSeverity(s.severity, minSeverity));
 
             const stored = await persistSuggestions(root, basename(root), kept, `review ${scopeLabel}`);
             const findings = sortFindings(
@@ -88,6 +95,15 @@ export const reviewCommand = new Command('review')
                 }))
             );
 
+            if (format === 'text' && !machine && process.stdout.isTTY && keeperShown()) {
+                const high = findings.filter((f) => meetsSeverity(f.severity, 'high')).length;
+                const pose = findings.length
+                    ? keeperPose('found', chalk.bold(`Found ${findings.length} issue${findings.length === 1 ? '' : 's'}`), high ? [chalk.red(`${high} high or critical`)] : [])
+                    : keeperPose('clean', chalk.bold.green('All clear'), [chalk.gray(`No issues in ${scopeLabel}`)]);
+                console.log('\n' + pose.join('\n'));
+            }
+
+            reportKeeperMood(findings.length ? 'found' : 'clean');
             const modelLabel = `${config.activeProvider}/${model}`;
             await emit(findings, format, options.output, scopeLabel, modelLabel);
             await writeExtras(findings, options, scopeLabel, modelLabel);
@@ -98,6 +114,7 @@ export const reviewCommand = new Command('review')
             }
         } catch (error) {
             logger.error(`Review failed: ${(error as Error).message}`);
+            reportKeeperMood('error');
             process.exitCode = 2;
         }
     });

@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 240" role="img" aria-labelledby="t">
+  <title id="t">Keeper, the OwnKey mascot: a living key with one inspecting eye</title>
+  <style>
+    .ink { fill: #15171a; }
+    .key { fill: #ff5a1f; stroke: #15171a; stroke-width: 6; stroke-linejoin: round; }
+    .white { fill: #f5f4ef; stroke: #15171a; stroke-width: 5; }
+    .limb { fill: none; stroke: #15171a; stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+    .glass { fill: #f5f4ef; fill-opacity: .55; stroke: #15171a; stroke-width: 5; }
+    .rim { fill: none; stroke: #ff5a1f; stroke-width: 4; }
+    .shadow { fill: #15171a; opacity: .12; }
+
+    /* Bob gently, look around, blink, and sweep the magnifier: a reviewer at work */
+    #body { animation: bob 2.4s ease-in-out infinite; transform-origin: 120px 200px; }
+    #pupil { animation: look 6s ease-in-out infinite; }
+    #lid { animation: blink 6s linear infinite; transform-origin: 120px 76px; transform: scaleY(0); }
+    #lens { animation: sweep 6s ease-in-out infinite; transform-origin: 62px 168px; }
+    #shadow { animation: squash 2.4s ease-in-out infinite; transform-origin: 120px 226px; }
+
+    @keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    @keyframes squash { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(.86); } }
+    @keyframes look {
+      0%, 18% { transform: translate(0, 0); }
+      26%, 40% { transform: translate(-11px, 3px); }
+      48%, 62% { transform: translate(11px, 3px); }
+      70%, 100% { transform: translate(0, 0); }
+    }
+    @keyframes blink {
+      0%, 85% { transform: scaleY(0); }
+      87% { transform: scaleY(1); }
+      89%, 100% { transform: scaleY(0); }
+    }
+    @keyframes sweep {
+      0%, 20% { transform: rotate(0deg); }
+      35%, 45% { transform: rotate(-14deg); }
+      60%, 100% { transform: rotate(0deg); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #body, #pupil, #lid, #lens, #shadow { animation: none; }
+    }
+  </style>
+
+  <ellipse id="shadow" class="shadow" cx="120" cy="226" rx="46" ry="6"/>
+
+  <g id="body">
+    <!-- legs -->
+    <path class="limb" d="M110 188 L104 216 L94 216"/>
+    <path class="limb" d="M132 188 L138 216 L148 216"/>
+
+    <!-- blade with teeth -->
+    <path class="key" d="M108 120 H134 V196 L121 208 L108 196 V182 H96 V170 H108 V160 H100 V148 H108 Z"/>
+    <path class="limb" d="M121 132 V188" style="stroke-width:4;opacity:.5"/>
+
+    <!-- arms: one on the hip, one holding the magnifier -->
+    <path class="limb" d="M134 140 C152 142 156 154 146 162"/>
+    <g id="lens">
+      <path class="limb" d="M108 140 C92 144 80 156 72 164"/>
+      <path class="limb" d="M70 168 L56 184" style="stroke-width:9"/>
+      <circle class="glass" cx="80" cy="156" r="16"/>
+      <circle class="rim" cx="80" cy="156" r="11"/>
+    </g>
+
+    <!-- bow: the head, one big eye -->
+    <circle class="key" cx="120" cy="76" r="54"/>
+    <circle class="white" cx="120" cy="76" r="33"/>
+    <g id="pupil">
+      <circle cx="120" cy="78" r="18" fill="#ff5a1f"/>
+      <circle class="ink" cx="120" cy="78" r="10"/>
+      <circle cx="125" cy="72" r="4" fill="#f5f4ef"/>
+    </g>
+    <!-- eyelid for the blink -->
+    <circle id="lid" cx="120" cy="76" r="32.5" fill="#ff5a1f"/>
+    <!-- a small smile under the eye -->
+    <path class="limb" d="M112 118 Q120 124 128 118" style="stroke-width:4"/>
+  </g>
+</svg>
