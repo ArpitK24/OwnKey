@@ -10,6 +10,13 @@ All notable changes to this project will be documented in this file.
 - `--quick` on `review` and `bench` keeps the previous single-pass review.
 - Four cross-file bench cases (`cross-null-return`, `cross-unit-mismatch`, `cross-missing-await`, and the control `clean-cross-guard`). Each can only be judged by reading a file the change does not touch. The bench report records the mode (`agentic` or `quick`).
 
+- Ollama Cloud and authenticated Ollama servers: when `OLLAMA_API_KEY` is set, OwnKey sends it as a bearer token (`ownkey config --provider ollama --endpoint https://ollama.com`). A rejected key now gives a clear message instead of a bare 401.
+- First real-model bench results in the README (`gpt-oss:120b` and `gemma4:31b` on Ollama Cloud, agentic vs quick).
+
+### Fixed
+
+- Findings are anchored on the line the model names. The output format now asks for `"line"`, and `line`, `lineNumber`, or `startLine` are accepted. Before, a finding without an exact diff fell back to the first changed line of its file, so a correct report could land on the wrong line in the review, in SARIF, and in bench scoring. On the bench this took `gpt-oss:120b` from 6 to 15 of 15 bugs caught: the model had been finding them all along.
+
 ### Changed
 
 - Providers now expose `chat(system, messages)`. One-shot `analyze` is built on it. Ollama uses `/api/chat` for multi-turn conversations and `/api/generate` for single requests, as before.

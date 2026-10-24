@@ -7,6 +7,15 @@ import { DEFAULT_MODELS } from '../config/models.js';
  * Supports local LLMs via Ollama (DeepSeek Coder, CodeLlama, etc.)
  * No API key required - runs completely offline
  */
+/**
+ * Headers for an Ollama request. Ollama Cloud (https://ollama.com) and authenticated
+ * proxies take a bearer key, read from OLLAMA_API_KEY as Ollama's own clients do.
+ */
+export function ollamaHeaders(extra: Record<string, string> = {}): Record<string, string> {
+    const key = process.env.OLLAMA_API_KEY?.trim();
+    return key ? { ...extra, Authorization: `Bearer ${key}` } : extra;
+}
+
 export class OllamaProvider extends AIProvider {
     private baseUrl: string;
 
@@ -23,6 +32,7 @@ export class OllamaProvider extends AIProvider {
         try {
             const response = await fetch(`${this.baseUrl}/api/tags`, {
                 method: 'GET',
+                headers: ollamaHeaders(),
             });
             return response.ok;
         } catch (error) {
@@ -43,7 +53,7 @@ export class OllamaProvider extends AIProvider {
         try {
             response = await fetch(url, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: ollamaHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(payload),
             });
         } catch (error) {
@@ -56,6 +66,12 @@ export class OllamaProvider extends AIProvider {
 
         if (!response.ok) {
             const body = await response.text().catch(() => '');
+            if (response.status === 401 || response.status === 403) {
+                throw new Error(
+                    `Ollama at ${this.baseUrl} rejected the request (${response.status}). ` +
+                        'For Ollama Cloud, set OLLAMA_API_KEY to a key from https://ollama.com/settings/keys'
+                );
+            }
             if (response.status === 404 && /model/i.test(body)) {
                 throw new Error(`Model "${this.model}" is not installed. Run: ollama pull ${this.model}`);
             }
@@ -74,7 +90,7 @@ export class OllamaProvider extends AIProvider {
      */
     static async getAvailableModels(baseUrl: string = 'http://localhost:11434'): Promise<string[]> {
         try {
-            const response = await fetch(`${baseUrl}/api/tags`);
+            const response = await fetch(`${baseUrl}/api/tags`, { headers: ollamaHeaders() });
             if (!response.ok) {
                 return [];
             }
@@ -92,7 +108,7 @@ export class OllamaProvider extends AIProvider {
      */
     static async isOllamaRunning(baseUrl: string = 'http://localhost:11434'): Promise<boolean> {
         try {
-            const response = await fetch(`${baseUrl}/api/tags`);
+            const response = await fetch(`${baseUrl}/api/tags`, { headers: ollamaHeaders() });
             return response.ok;
         } catch {
             return false;

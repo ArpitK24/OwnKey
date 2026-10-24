@@ -8,10 +8,11 @@ export interface Finding extends Suggestion {
 const SEVERITY_ORDER: Severity[] = ['critical', 'high', 'medium', 'low', 'info'];
 
 /**
- * Best line to anchor a finding on: the first added line of its diff, else the first
- * changed line of its file in the review, else line 1.
+ * Best line to anchor a finding on: the line the model named, else the first added line
+ * of its diff, else the first changed line of its file in the review, else line 1.
  */
 export function anchorLine(s: Suggestion, changed?: Array<[number, number]>): number {
+    if (s.line && s.line > 0) return s.line;
     if (s.diff) {
         let newLine = 0;
         for (const raw of s.diff.split('\n')) {

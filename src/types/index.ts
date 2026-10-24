@@ -99,6 +99,8 @@ export interface Suggestion {
     diff: string;
     filePath: string;
     rationale: string;
+    /** 1-based line in the file the finding is about, when the model gives one */
+    line?: number;
     tags?: Record<string, any>;
 }
 
