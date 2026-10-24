@@ -102,10 +102,26 @@ ownkey undo --list                    # recent applies
 
 For a whole-project audit of any folder, git or not, use `ownkey suggest .`
 
+## Interactive session
+
+Run `ownkey` with no arguments in any project folder and it opens a session for that folder. The header shows the repository, branch, how many files changed, and which model is reviewing. Then type any command without the `ownkey` prefix:
+
+```text
+› review --staged
+› apply 3 --verify "npm test"
+› undo --last
+› bench --case off-by-one
+```
+
+Tab completes commands and their flags, the arrow keys walk your history (kept in `~/.ownkey/history`), `help` lists every command, and Ctrl+D leaves. Commands run exactly as they do from the shell, including interactive prompts like the `config` wizard. Ctrl+C stops the running command without closing the session.
+
+Outside an interactive terminal (pipes, scripts, CI), or with `OWNKEY_NO_UI=1` set, a bare `ownkey` prints help as before. Every subcommand behaves the same with or without the session.
+
 ## Commands
 
 | Command | Purpose |
 |---|---|
+| `ownkey` | Open the interactive session for the current folder. |
 | `ownkey config` | Set the AI provider, model, endpoint, and optional database. Run with no flags for an interactive wizard. |
 | `ownkey review [path]` | Review git changes: staged, uncommitted, or a branch against its base. |
 | `ownkey suggest [path]` | Audit a whole folder and store suggestions. |
