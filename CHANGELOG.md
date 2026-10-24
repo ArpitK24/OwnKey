@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-10-24
+
+### Added
+
+- `ownkey bench`: measures review quality on 15 seeded cases (12 planted bugs across JavaScript, TypeScript, and Python, plus 3 correct changes as controls). Reports recall, precision, and false alarms on clean changes. Supports `--model` to compare models on the same key, `--format json|markdown`, `--output`, and `--min-recall` for CI gating. Runs in temporary repositories and stores nothing.
+
+### Changed
+
+- The review pipeline (change collection, file selection, model call) now lives in `src/core/review/run.ts`. Both `review` and `bench` use it, so the benchmark measures exactly what `review` does.
+
 ## [1.1.2] - 2026-10-23
 
 ### Documentation

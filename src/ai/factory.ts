@@ -15,7 +15,7 @@ export class AIProviderFactory {
     /**
      * Create an AI provider instance based on configuration
      */
-    static async createProvider(): Promise<AIProvider> {
+    static async createProvider(overrides: { model?: string } = {}): Promise<AIProvider> {
         const config = await configManager.load();
 
         if (!config.activeProvider) {
@@ -32,26 +32,26 @@ export class AIProviderFactory {
                 if (!apiKey) {
                     throw new ConfigError('Gemini API key not found. Run: ownkey config');
                 }
-                const geminiModel = config.providers.gemini?.model || GeminiProvider.getRecommendedModel();
+                const geminiModel = overrides.model || config.providers.gemini?.model || GeminiProvider.getRecommendedModel();
                 return new GeminiProvider(apiKey, geminiModel);
 
             case 'openai':
                 if (!apiKey) {
                     throw new ConfigError('OpenAI API key not found. Run: ownkey config');
                 }
-                const openaiModel = config.providers.openai?.model || DEFAULT_MODELS.openai;
+                const openaiModel = overrides.model || config.providers.openai?.model || DEFAULT_MODELS.openai;
                 return new OpenAIProvider(apiKey, openaiModel, config.providers.openai?.endpoint);
 
             case 'anthropic':
                 if (!apiKey) {
                     throw new ConfigError('Anthropic API key not found. Run: ownkey config');
                 }
-                const anthropicModel = config.providers.anthropic?.model || DEFAULT_MODELS.anthropic;
+                const anthropicModel = overrides.model || config.providers.anthropic?.model || DEFAULT_MODELS.anthropic;
                 return new AnthropicProvider(apiKey, anthropicModel);
 
             case 'ollama':
                 // Ollama doesn't require API key - runs locally
-                const ollamaModel = config.providers.ollama?.model || DEFAULT_MODELS.ollama;
+                const ollamaModel = overrides.model || config.providers.ollama?.model || DEFAULT_MODELS.ollama;
                 const ollamaBaseUrl = config.providers.ollama?.endpoint || 'http://localhost:11434';
                 return new OllamaProvider(undefined, ollamaModel, ollamaBaseUrl);
 

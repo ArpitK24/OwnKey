@@ -4,14 +4,13 @@ import { writeFile } from 'fs/promises';
 import { createRequire } from 'module';
 import chalk from 'chalk';
 import { logger } from '../utils/logger.js';
-import { FileScanner } from '../core/scanner.js';
 import { AIProviderFactory } from '../ai/factory.js';
 import { configManager } from '../config/manager.js';
 import { meetsSeverity, parseSeverity } from '../utils/severity.js';
 import { persistSuggestions } from '../core/persist.js';
-import { collectChanges, describeScope, gitRoot, readForReview, resolveScope } from '../core/review/git.js';
+import { describeScope, gitRoot, resolveScope } from '../core/review/git.js';
+import { analyzeChanges, prepareReview } from '../core/review/run.js';
 import { Finding, anchorLine, sortFindings, toMarkdown, toSarif } from '../core/review/report.js';
-import type { CodeContext, FileContent, Suggestion } from '../types/index.js';
 
 const FORMATS = ['text', 'markdown', 'json', 'sarif'] as const;
 type Format = (typeof FORMATS)[number];
@@ -52,15 +51,10 @@ export const reviewCommand = new Command('review')
 
             const root = gitRoot(resolve(path));
             const scope = resolveScope(root, { staged: options.staged, base: options.base });
-            const changes = collectChanges(root, scope);
             const scopeLabel = describeScope(scope);
-
-            // Honour .gitignore/.ownkeyignore, size and binary rules.
-            const scanner = new FileScanner(root);
-            const scanned = await scanner.scan();
-            const reviewable = new Set(scanned.files.map((f) => f.relativePath.replace(/\\/g, '/')));
-            const files = changes.files.filter((f) => reviewable.has(f));
             const maxFiles = parseInt(options.maxFiles, 10) || 25;
+            const target = await prepareReview(root, scope, maxFiles);
+            const { changes, reviewable: files, selected } = target;
 
             if (files.length === 0) {
                 say(chalk.green(`\n  Nothing to review in ${scopeLabel}.\n`));
@@ -69,31 +63,14 @@ export const reviewCommand = new Command('review')
                 return;
             }
 
-            const selected = files.slice(0, maxFiles);
             say(chalk.bold(`\nReviewing ${selected.length} file(s) in ${scopeLabel}`) + (files.length > selected.length ? chalk.yellow(` (${files.length - selected.length} skipped by --max-files)`) : ''));
             for (const f of selected) say(chalk.gray(`  ${f}`));
-
-            const byPath = new Map(scanned.files.map((f) => [f.relativePath.replace(/\\/g, '/'), f]));
-            const contents: FileContent[] = selected.map((f) => ({ ...byPath.get(f)!, content: readForReview(root, scope, f) }));
-            const patch = changes.patch;
-
-            const context: CodeContext = {
-                files: contents,
-                projectInfo: { name: basename(root), rootPath: root, fileCount: contents.length },
-                reviewPatch: patch,
-            };
 
             const provider = await AIProviderFactory.createProvider();
             const model = provider.getModel();
             say(chalk.gray(`\n  Model: ${config.activeProvider} / ${model}\n`));
 
-            const raw: Suggestion[] = [];
-            for await (const s of provider.analyze(context)) raw.push(s);
-
-            const inScope = new Set(selected);
-            const kept = raw
-                .map((s) => ({ ...s, filePath: s.filePath.replace(/\\/g, '/').replace(/^\.\//, '') }))
-                .filter((s) => inScope.has(s.filePath))
+            const kept = (await analyzeChanges(root, scope, target, provider))
                 .filter((s) => !typeFilter || s.type === typeFilter)
                 .filter((s) => meetsSeverity(s.severity, minSeverity));
 

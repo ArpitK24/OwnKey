@@ -112,6 +112,7 @@ For a whole-project audit of any folder, git or not, use `ownkey suggest .`
 | `ownkey scan [path]` | List the files OwnKey would analyze, honoring `.gitignore` and `.ownkeyignore`. |
 | `ownkey apply [id]` | Apply one suggestion, or all pending ones with `--all`, optionally verified. |
 | `ownkey undo [backup-id]` | Restore files from a backup created by `apply`. |
+| `ownkey bench` | Measure review quality on seeded-bug cases with your model. |
 
 <details>
 <summary><strong>Full option reference</strong></summary>
@@ -146,6 +147,17 @@ For a whole-project audit of any folder, git or not, use `ownkey suggest .`
 | `--max-files <n>` | Maximum changed files to review. Default `25`. |
 
 Exit codes: `0` success, `1` the `--fail-on` gate tripped, `2` the review could not run.
+
+#### `ownkey bench`
+
+| Option | Description |
+|---|---|
+| `--list` | List the cases and exit. |
+| `--case <ids>` | Comma-separated case ids to run. Default: all. |
+| `--model <model>` | Use this model for the run instead of the configured one. |
+| `--format <format>` | `text` (default), `json`, or `markdown`. |
+| `--output <file>` | Write the report to a file. |
+| `--min-recall <ratio>` | Exit with code 1 when recall is below this ratio, from `0` to `1`. |
 
 #### `ownkey scan [path]`
 
@@ -189,6 +201,21 @@ Exit codes: `0` success, `1` the `--fail-on` gate tripped, `2` the review could 
 `--local-only`, `--verbose`, `--debug`, `--quiet`
 
 </details>
+
+## Measuring review quality
+
+`ownkey bench` shows how well a model reviews before you trust it with your pull requests. It runs a fixed set of small cases, each a throwaway git repository with one staged change:
+
+- **Bug cases** plant one real defect: an off-by-one, SQL injection, a missing `await`, a null dereference, a hardcoded secret, path traversal, command injection, an inverted auth check, a mutable default argument, a numeric sort with the string comparator, a switch fallthrough, and `is` used to compare strings. They cover JavaScript, TypeScript, and Python.
+- **Control cases** are correct changes. Anything reported there at medium severity or above is a false alarm.
+
+```bash
+ownkey bench                                  # all cases with your configured model
+ownkey bench --model claude-opus-5-5          # compare another model on the same key
+ownkey bench --format markdown --output bench.md
+```
+
+It reports **recall** (planted bugs reported within 3 lines of the defect with a matching type), **precision** (matching findings over all findings at medium or above), and how many controls stayed clean. Low and info findings never count against a model. Bench runs in temporary directories and stores nothing, but it does send every case to your provider, so a full run costs about 15 small review calls.
 
 ## Providers
 
