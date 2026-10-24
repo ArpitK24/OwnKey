@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, Text, useApp, useInput } from 'ink';
 import { applySuggestion, suggest, type CommandInfo } from './complete.js';
 import type { SessionInfo } from './context.js';
-import { Keeper, useTerminalSize } from './Keeper.js';
+import { Keeper, useTerminalSize } from './keeper-view.js';
 import { KEEPER_BREAKPOINTS, keeperShown, keeperSize, type KeeperMood } from './keeper.js';
 
 export interface PromptProps {
