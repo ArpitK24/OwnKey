@@ -13,12 +13,15 @@ All notable changes to this project will be documented in this file.
 - Ollama Cloud and authenticated Ollama servers: when `OLLAMA_API_KEY` is set, OwnKey sends it as a bearer token (`ownkey config --provider ollama --endpoint https://ollama.com`). A rejected key now gives a clear message instead of a bare 401.
 - First real-model bench results in the README (`gpt-oss:120b` and `gemma4:31b` on Ollama Cloud, agentic vs quick).
 
+- Keeper, the OwnKey mascot: a living key with one inspecting eye. It reacts to what OwnKey is doing. Its eye darts across files on a live status line while a review investigates. It's alarmed when the review finds issues, smiles when the review is clean, and shows an × on errors. At the session prompt, it keeps the look of the last command. It resizes with the terminal (full, compact, one-line, or hidden) and redraws when the window is resized. It never appears in CI, pipes, or machine-readable output. `OWNKEY_REDUCED_MOTION=1` keeps it still and `OWNKEY_NO_MASCOT=1` hides it. There's also an animated `assets/keeper.svg` for the README, which respects `prefers-reduced-motion`.
+
 ### Fixed
 
 - Findings are anchored on the line the model names. The output format now asks for `"line"`, and `line`, `lineNumber`, or `startLine` are accepted. Before, a finding without an exact diff fell back to the first changed line of its file, so a correct report could land on the wrong line in the review, in SARIF, and in bench scoring. On the bench this took `gpt-oss:120b` from 6 to 15 of 15 bugs caught: the model had been finding them all along.
 
 ### Changed
 
+- The session's command menu fits narrow terminals: descriptions truncate instead of wrapping.
 - Providers now expose `chat(system, messages)`. One-shot `analyze` is built on it. Ollama uses `/api/chat` for multi-turn conversations and `/api/generate` for single requests, as before.
 
 ## [1.3.0] - 2026-10-24

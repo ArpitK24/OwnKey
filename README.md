@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/keeper.svg" alt="Keeper, the OwnKey mascot: a living orange key with one inspecting eye, holding a magnifying glass" width="132"></p>
+
 <h1 align="center">OwnKey</h1>
 
 <h3 align="center">The local-first AI code reviewer that runs on your own keys.</h3>
@@ -132,6 +134,24 @@ Run `ownkey` with no arguments in any project folder and it opens a session for 
 ```
 
 Tab completes commands and their flags, the arrow keys walk your history (kept in `~/.ownkey/history`), `help` lists every command, and Ctrl+D leaves. Commands run exactly as they do from the shell, including interactive prompts like the `config` wizard. Ctrl+C stops the running command without closing the session.
+
+### Keeper
+
+Keeper, the key with one inspecting eye, keeps you company in the terminal and shows what OwnKey is doing:
+
+```text
+ ╭─────╮ !
+ │  ◎  │    Found 3 issues
+ ╰──┬──╯    1 high or critical
+    ├┐
+    ╵
+```
+
+- While a review investigates, Keeper's eye darts between files on a live status line that counts its lookups.
+- When a review finishes, Keeper is alarmed if it found issues, smiles if everything is clear, and shows an × if something went wrong. Back at the session prompt, it keeps that look until your next command.
+- Keeper resizes with your terminal: a full figure from 72 columns, a compact one from 44, a one-line `( ◉ )━┳┳╸` below that, and nothing on very narrow screens. Words never wrap into it, and it redraws when you resize the window.
+
+Keeper only moves on an interactive terminal. In CI, pipes, and `--format json|sarif|markdown` output it never appears, so logs and reports stay clean. Set `OWNKEY_REDUCED_MOTION=1` to keep Keeper still, or `OWNKEY_NO_MASCOT=1` to hide it.
 
 Outside an interactive terminal (pipes, scripts, CI), or with `OWNKEY_NO_UI=1` set, a bare `ownkey` prints help as before. Every subcommand behaves the same with or without the session.
 
