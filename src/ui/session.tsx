@@ -1,17 +1,30 @@
 import React from 'react';
 import { render } from 'ink';
 import { spawn } from 'child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { homedir } from 'os';
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { homedir, tmpdir } from 'os';
 import { join } from 'path';
 import chalk from 'chalk';
-import { Banner, Prompt } from './App.js';
+import { Prompt } from './App.js';
+import type { KeeperMood } from './keeper.js';
 import { BUILTINS, type CommandInfo } from './complete.js';
 import { loadSessionInfo } from './context.js';
 import { splitWords } from './words.js';
 
 const HISTORY_FILE = join(homedir(), '.ownkey', 'history');
 const HISTORY_MAX = 500;
+const STATE_FILE = join(tmpdir(), `ownkey-session-${process.pid}.json`);
+
+/** The mood a command reported for Keeper, if it reported one; clears it for the next. */
+function takeReportedMood(): KeeperMood | undefined {
+    try {
+        const { mood } = JSON.parse(readFileSync(STATE_FILE, 'utf-8')) as { mood?: KeeperMood };
+        rmSync(STATE_FILE, { force: true });
+        return mood;
+    } catch {
+        return undefined;
+    }
+}
 
 function loadHistory(): string[] {
     try {
@@ -46,7 +59,7 @@ function runCommand(args: string[]): Promise<number> {
         process.on('SIGINT', ignore);
         const child = spawn(process.execPath, [...process.execArgv, process.argv[1], ...args], {
             stdio: 'inherit',
-            env: { ...process.env, OWNKEY_NO_UI: '1' },
+            env: { ...process.env, OWNKEY_NO_UI: '1', OWNKEY_SESSION_STATE: STATE_FILE },
         });
         const done = (code: number) => {
             process.off('SIGINT', ignore);
@@ -65,16 +78,25 @@ function printHelp(commands: CommandInfo[]): void {
     console.log(chalk.gray('  Keys: Tab complete, ↑↓ history or suggestions, ←→ move, Ctrl+U clear line, Esc clear, Ctrl+D exit\n'));
 }
 
+/** Exit codes: review uses 1 for findings at --fail-on, and 2 for an error. */
+export function moodFor(command: string, code: number): KeeperMood {
+    if (code === 0) return 'clean';
+    if (code === 1 && (command === 'review' || command === 'bench')) return 'found';
+    return 'error';
+}
+
 export async function startSession(commands: CommandInfo[], version: string): Promise<void> {
     const history = loadHistory();
     const known = new Set(commands.map((c) => c.name));
 
-    const banner = render(<Banner version={version} />);
-    banner.unmount();
-
+    let banner: string | undefined = version;
+    // Keeper wears the outcome of the last command at the next prompt
+    let mood: KeeperMood = 'idle';
     for (;;) {
         const info = await loadSessionInfo(process.cwd(), version);
-        const line = await ask({ info, commands, history });
+        const line = await ask({ info, commands, history, banner, mood });
+        banner = undefined;
+        mood = 'idle';
         if (line === null) break;
 
         const trimmed = line.trim();
@@ -109,9 +131,11 @@ export async function startSession(commands: CommandInfo[], version: string): Pr
 
         const started = Date.now();
         const code = await runCommand(args);
+        mood = takeReportedMood() ?? moodFor(name, code);
         const secs = ((Date.now() - started) / 1000).toFixed(1);
         console.log(code === 0 ? chalk.gray(`  ✓ done in ${secs}s\n`) : chalk.red(`  ✗ exited with code ${code} after ${secs}s\n`));
     }
+    rmSync(STATE_FILE, { force: true });
     console.log(chalk.gray('  Bye.'));
 }
 
