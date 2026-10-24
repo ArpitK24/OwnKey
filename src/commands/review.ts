@@ -28,6 +28,8 @@ export const reviewCommand = new Command('review')
     .option('--markdown-output <file>', 'Also write a Markdown report to this file (PR comment, job summary)')
     .option('--fail-on <level>', 'Exit with code 1 if any finding is at or above this severity (for CI)')
     .option('--max-files <number>', 'Maximum changed files to review', '25')
+    .option('--quick', 'Single-pass review without repository tools (faster, cheaper, less context)')
+    .option('--max-steps <number>', 'Tool rounds the reviewer may use to investigate the repository', '6')
     .action(async (path: string, options) => {
         try {
             const format = String(options.format).toLowerCase() as Format;
@@ -70,7 +72,10 @@ export const reviewCommand = new Command('review')
             const model = provider.getModel();
             say(chalk.gray(`\n  Model: ${config.activeProvider} / ${model}\n`));
 
-            const kept = (await analyzeChanges(root, scope, target, provider))
+            if (!options.quick) say(chalk.gray('  Investigating the repository before reporting...'));
+            const onStep = (step: { label: string }) => say(chalk.gray(`  ↳ ${step.label}`));
+            const maxSteps = Math.max(0, parseInt(options.maxSteps, 10) || 0);
+            const kept = (await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep }))
                 .filter((s) => !typeFilter || s.type === typeFilter)
                 .filter((s) => meetsSeverity(s.severity, minSeverity));
 

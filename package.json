@@ -1,6 +1,6 @@
 {
   "name": "ownkey",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "Local-first AI code reviewer CLI: review git changes, gate PRs with SARIF, and apply verified fixes using your own OpenAI, Anthropic, Gemini, or Ollama keys",
   "main": "dist/index.js",
   "bin": {

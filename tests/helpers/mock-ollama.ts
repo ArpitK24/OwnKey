@@ -2,10 +2,11 @@ import http from 'http';
 import type { AddressInfo } from 'net';
 
 /**
- * Minimal Ollama-compatible server. `reply` is what /api/generate returns as the model text.
+ * Minimal Ollama-compatible server. `reply` is what /api/generate and /api/chat return as the model text.
+ * Put strings in `script` to answer successive requests in order (then fall back to `reply`).
  */
 export async function startMockOllama(models: string[] = ['mock-coder']) {
-    const state = { reply: '[]', requests: [] as any[] };
+    const state = { reply: '[]', script: [] as string[], requests: [] as any[] };
     const server = http.createServer((req, res) => {
         let body = '';
         req.on('data', (c) => (body += c));
@@ -15,9 +16,10 @@ export async function startMockOllama(models: string[] = ['mock-coder']) {
                 res.end(JSON.stringify({ models: models.map((name) => ({ name })) }));
                 return;
             }
-            if (req.url === '/api/generate') {
-                state.requests.push(JSON.parse(body || '{}'));
-                res.end(JSON.stringify({ response: state.reply }));
+            if (req.url === '/api/generate' || req.url === '/api/chat') {
+                state.requests.push({ url: req.url, ...JSON.parse(body || '{}') });
+                const text = state.script.length ? state.script.shift()! : state.reply;
+                res.end(JSON.stringify(req.url === '/api/chat' ? { message: { role: 'assistant', content: text } } : { response: text }));
                 return;
             }
             res.statusCode = 404;

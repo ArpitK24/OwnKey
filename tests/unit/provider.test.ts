@@ -10,7 +10,9 @@ class TestProvider extends AIProvider {
     async testConnection() {
         return true;
     }
-    async *analyze() {}
+    async chat() {
+        return '[]';
+    }
     parse(text: string) {
         return this.parseSuggestions(text);
     }

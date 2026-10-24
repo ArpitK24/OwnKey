@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-10-24
+
+### Added
+
+- Agentic review. `ownkey review` (and `ownkey bench`) now let the model investigate the repository before it reports. It can read files with line numbers, run regex searches, and list folders, so it can open the definition of a function the change calls, find other callers, or check how a value is validated elsewhere. Each tool call is shown as it happens (`↳ read src/orders.ts`). Tools are read-only and limited to files the scanner allows, so anything ignored by `.gitignore` or `.ownkeyignore` (such as `.env`) is never readable. The loop works with every provider through plain JSON turns, with no native tool API needed, and is capped by `--max-steps` (default 6 rounds, 4 calls per round).
+- `--quick` on `review` and `bench` keeps the previous single-pass review.
+- Four cross-file bench cases (`cross-null-return`, `cross-unit-mismatch`, `cross-missing-await`, and the control `clean-cross-guard`). Each can only be judged by reading a file the change does not touch. The bench report records the mode (`agentic` or `quick`).
+
+### Changed
+
+- Providers now expose `chat(system, messages)`. One-shot `analyze` is built on it. Ollama uses `/api/chat` for multi-turn conversations and `/api/generate` for single requests, as before.
+
 ## [1.3.0] - 2026-10-24
 
 ### Added

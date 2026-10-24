@@ -1,5 +1,4 @@
-import { AIProvider } from './provider.js';
-import type { CodeContext, Suggestion } from '../types/index.js';
+import { AIProvider, type ChatMessage } from './provider.js';
 import { logger } from '../utils/logger.js';
 import { DEFAULT_MODELS } from '../config/models.js';
 
@@ -32,20 +31,20 @@ export class OllamaProvider extends AIProvider {
         }
     }
 
-    async *analyze(context: CodeContext): AsyncGenerator<Suggestion> {
+    async chat(system: string, messages: ChatMessage[]): Promise<string> {
+        // A single turn uses /api/generate (unchanged from earlier versions); a conversation uses /api/chat
+        const single = messages.length === 1 && messages[0].role === 'user';
+        const url = `${this.baseUrl}${single ? '/api/generate' : '/api/chat'}`;
+        const payload = single
+            ? { model: this.model, system, prompt: messages[0].content, stream: false, options: { temperature: 0.2 } }
+            : { model: this.model, messages: [{ role: 'system', content: system }, ...messages], stream: false, options: { temperature: 0.2 } };
+
         let response: Response;
         try {
-            // Same prompt and JSON contract as every other provider, so suggestions carry diffs.
-            response = await fetch(`${this.baseUrl}/api/generate`, {
+            response = await fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: this.model,
-                    system: this.getSystemPrompt(),
-                    prompt: this.buildUserPrompt(context),
-                    stream: false,
-                    options: { temperature: 0.2 },
-                }),
+                body: JSON.stringify(payload),
             });
         } catch (error) {
             throw new Error(
@@ -63,13 +62,10 @@ export class OllamaProvider extends AIProvider {
             throw new Error(`Ollama API error: ${response.status} ${response.statusText} ${body}`.trim());
         }
 
-        const data = (await response.json()) as { response?: string };
-        const text = data.response ?? '';
+        const data = (await response.json()) as { response?: string; message?: { content?: string } };
+        const text = data.response ?? data.message?.content ?? '';
         logger.debug(`Ollama raw response (${text.length} chars): ${text.slice(0, 500)}`);
-
-        for (const suggestion of this.parseSuggestions(text)) {
-            yield suggestion;
-        }
+        return text;
     }
 
     /**

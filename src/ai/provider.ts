@@ -1,5 +1,11 @@
 import { CodeContext, Suggestion, AnalyzeOptions, AIProviderInterface } from '../types/index.js';
 
+/** One turn of a multi-turn conversation with the model. */
+export interface ChatMessage {
+    role: 'user' | 'assistant';
+    content: string;
+}
+
 /**
  * Base abstract class for AI providers
  * All providers (OpenAI, Gemini, Anthropic, Ollama) must implement this interface
@@ -31,20 +37,23 @@ export abstract class AIProvider implements AIProviderInterface {
     abstract testConnection(): Promise<boolean>;
 
     /**
-     * Analyze code and generate suggestions
-     * @param context - Code context with files and project info
-     * @param options - Analysis options (streaming, max tokens, etc.)
-     * @returns AsyncGenerator yielding suggestions as they're generated
+     * Send a conversation to the model and return its text reply.
+     * Every provider implements this; one-shot analysis and the review agent both build on it.
      */
-    abstract analyze(
-        context: CodeContext,
-        options?: AnalyzeOptions
-    ): AsyncGenerator<Suggestion>;
+    abstract chat(system: string, messages: ChatMessage[], options?: AnalyzeOptions): Promise<string>;
+
+    /**
+     * Analyze code in one request and yield suggestions
+     */
+    async *analyze(context: CodeContext, options?: AnalyzeOptions): AsyncGenerator<Suggestion> {
+        const text = await this.chat(this.getSystemPrompt(), [{ role: 'user', content: this.buildUserPrompt(context) }], options);
+        for (const suggestion of this.parseSuggestions(text)) yield suggestion;
+    }
 
     /**
      * Format the system prompt for code analysis
      */
-    protected getSystemPrompt(): string {
+    getSystemPrompt(): string {
         return `You are a senior software engineer performing code review and analysis.
 
 Your task is to analyze the provided codebase and identify:
@@ -83,7 +92,7 @@ Be thorough but practical. Focus on high-impact suggestions.`;
     /**
      * Build the user prompt with code context
      */
-    protected buildUserPrompt(context: CodeContext): string {
+    buildUserPrompt(context: CodeContext): string {
         let prompt = `# Project Analysis Request\n\n`;
         prompt += `**Project:** ${context.projectInfo.name}\n`;
         prompt += `**Path:** ${context.projectInfo.rootPath}\n`;
@@ -121,7 +130,7 @@ Be thorough but practical. Focus on high-impact suggestions.`;
     /**
      * Parse AI response and extract suggestions
      */
-    protected parseSuggestions(response: string): Suggestion[] {
+    parseSuggestions(response: string): Suggestion[] {
         const parsed = AIProvider.extractJson(response);
         const list: any[] | null = Array.isArray(parsed)
             ? parsed

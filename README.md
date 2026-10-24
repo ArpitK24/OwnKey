@@ -102,6 +102,24 @@ ownkey undo --list                    # recent applies
 
 For a whole-project audit of any folder, git or not, use `ownkey suggest .`
 
+## How a review works
+
+OwnKey sends the model your changed files and the diff, then lets it investigate before it answers, much like a teammate who opens a few files before leaving a comment. With read-only tools, it can:
+
+- read any file in the repository, with line numbers
+- search the codebase with a regular expression
+- list a folder
+
+Each step is printed as it happens:
+
+```text
+  Investigating the repository before reporting...
+  ↳ search /findOrder\(/
+  ↳ read src/orders.ts
+```
+
+That's how it catches bugs that only show up across files, such as a lookup that can return `undefined`, a value in cents compared against dollars, or an async loader used without `await`. It also stays quiet about code that is already guarded elsewhere. Files ignored by `.gitignore` or `.ownkeyignore` are never readable. Use `--max-steps <n>` to cap the investigation (default 6 rounds), or `--quick` for the old single-pass review.
+
 ## Interactive session
 
 Run `ownkey` with no arguments in any project folder and it opens a session for that folder. The header shows the repository, branch, how many files changed, and which model is reviewing. Then type any command without the `ownkey` prefix:

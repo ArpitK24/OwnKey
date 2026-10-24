@@ -9,7 +9,7 @@ import { logger } from '../utils/logger.js';
 import { configManager } from '../config/manager.js';
 import { AIProviderFactory } from '../ai/factory.js';
 import type { AIProvider } from '../ai/provider.js';
-import { analyzeChanges, prepareReview } from '../core/review/run.js';
+import { analyzeChanges, prepareReview, type AnalyzeOptions } from '../core/review/run.js';
 import { anchorLine } from '../core/review/report.js';
 import { BENCH_CASES, type BenchCase } from '../bench/cases.js';
 import { scoreCase, summarize, type BenchFinding, type BenchSummary, type CaseResult } from '../bench/score.js';
@@ -24,6 +24,8 @@ export const benchCommand = new Command('bench')
     .option('--model <model>', 'Model to use for this run instead of the configured one')
     .option('--format <format>', 'Output format: text, json, markdown', 'text')
     .option('--output <file>', 'Write the report to a file')
+    .option('--quick', 'Benchmark the single-pass review instead of the agentic one')
+    .option('--max-steps <number>', 'Tool rounds the reviewer may use per case', '6')
     .option('--min-recall <ratio>', 'Exit with code 1 if recall is below this ratio (0 to 1)')
     .action(async (options) => {
         try {
@@ -51,17 +53,19 @@ export const benchCommand = new Command('bench')
             if (machine) logger.useStderr();
             const say = (msg: string) => (machine ? process.stderr.write(msg + '\n') : console.log(msg));
 
-            say(chalk.bold(`\nOwnKey bench: ${cases.length} case(s) with ${modelLabel}\n`));
+            const mode = options.quick ? 'quick' : 'agentic';
+            const maxSteps = Math.max(0, parseInt(options.maxSteps, 10) || 0);
+            say(chalk.bold(`\nOwnKey bench: ${cases.length} case(s) with ${modelLabel} (${mode} review)\n`));
             const results: CaseResult[] = [];
             for (const c of cases) {
-                const r = await runCase(c, provider);
+                const r = await runCase(c, provider, { quick: options.quick, maxSteps });
                 results.push(r);
                 say(caseLine(r));
             }
             const summary = summarize(results);
 
             let body: string;
-            if (format === 'json') body = JSON.stringify({ model: modelLabel, summary, results }, null, 2) + '\n';
+            if (format === 'json') body = JSON.stringify({ model: modelLabel, mode, summary, results }, null, 2) + '\n';
             else if (format === 'markdown') body = toMarkdown(results, summary, modelLabel);
             else body = summaryText(summary);
 
@@ -99,13 +103,17 @@ function git(cwd: string, ...args: string[]): void {
 }
 
 /** Build a throwaway repo for one case, stage the change, and review it. Nothing is persisted. */
-export async function runCase(c: BenchCase, provider: AIProvider): Promise<CaseResult> {
+export async function runCase(c: BenchCase, provider: AIProvider, options: AnalyzeOptions = {}): Promise<CaseResult> {
     const started = Date.now();
     const repo = mkdtempSync(join(tmpdir(), `ownkey-bench-${c.id}-`));
     try {
         const file = join(repo, c.file);
         mkdirSync(dirname(file), { recursive: true });
         writeFileSync(file, c.base);
+        for (const [path, body] of Object.entries(c.context ?? {})) {
+            mkdirSync(dirname(join(repo, path)), { recursive: true });
+            writeFileSync(join(repo, path), body);
+        }
         git(repo, 'init', '-q');
         git(repo, 'add', '.');
         git(repo, 'commit', '-qm', 'base');
@@ -114,7 +122,7 @@ export async function runCase(c: BenchCase, provider: AIProvider): Promise<CaseR
 
         const scope = { kind: 'staged' } as const;
         const target = await prepareReview(repo, scope);
-        const suggestions = await analyzeChanges(repo, scope, target, provider);
+        const suggestions = await analyzeChanges(repo, scope, target, provider, options);
         const findings: BenchFinding[] = suggestions.map((s) => ({
             filePath: s.filePath,
             line: anchorLine(s, target.changes.changedLines.get(s.filePath)),
