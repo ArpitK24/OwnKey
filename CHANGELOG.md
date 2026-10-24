@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.1] - 2026-10-24
+
+### Fixed
+
+- Every command crashed on Windows (and other case-insensitive file systems) with `SyntaxError: The requested module './keeper.js' does not provide an export named 'KEEPER_FPS'`. 1.4.0 shipped `dist/ui/Keeper.js` and `dist/ui/keeper.js`, which are the same file there, so one overwrote the other. The terminal component is now `keeper-view`, and a test fails the build if two paths ever differ only by case.
+
 ## [1.4.0] - 2026-10-24
 
 ### Added
