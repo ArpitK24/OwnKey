@@ -194,17 +194,69 @@ export class RepoTools {
  * read-only tools before it answers. Works with every provider through plain JSON turns, no native tool API.
  */
 export async function runAgentReview(provider: AIProvider, context: CodeContext, tools: RepoTools, options: AgentOptions = {}): Promise<AgentResult> {
+    const system = agentSystemPrompt(provider.getSystemPrompt());
+    const first =
+        provider.buildUserPrompt(context) +
+        '\n\nInvestigate with tools if anything needs confirming, then reply with {"findings": [...]}. Reply with one JSON object only.';
+    const { value, steps } = await agentLoop(provider, system, first, tools, options, {
+        finish: (parsed) => {
+            const findings = readFindings(parsed);
+            return findings ? provider.parseSuggestions(JSON.stringify(findings)) : null;
+        },
+        fallback: (reply) => provider.parseSuggestions(reply),
+        finalShape: '{"findings": [...]}',
+    });
+    return { suggestions: value, steps };
+}
+
+export const CHAT_SYSTEM_PROMPT = `You are OwnKey, an AI code reviewer answering a developer in a pull request conversation.
+Answer the question about the code directly and concisely, in GitHub-flavoured Markdown. Quote file paths and line
+numbers when you refer to code. When you suggest a change, show it as a short code block. If you are not sure, say so
+and say what would settle it. Never invent APIs or files: check with the tools.
+
+## Working as an agent
+
+You can call read-only tools on the repository before you answer. Every reply must be exactly one JSON object and
+nothing else. Either call tools:
+
+{"calls": [
+  {"tool": "read_file", "path": "src/db.ts", "start": 1, "end": 120},
+  {"tool": "search", "pattern": "getUser\\\\(", "path": "src"},
+  {"tool": "list_files", "path": "src/routes"}
+]}
+
+or finish with your answer:
+
+{"answer": "your Markdown reply"}
+
+Tools:
+- read_file: lines of a file with line numbers (at most ${READ_MAX_LINES} lines per call). "start" and "end" are optional.
+- search: regular expression search across the repository, returns "path:line: text" (at most ${SEARCH_MAX_MATCHES} matches).
+- list_files: files under a folder ("path" optional).`;
+
+/** Answer a question about the code, investigating with the same read-only tools as a review. */
+export async function runAgentChat(provider: AIProvider, question: string, tools: RepoTools, options: AgentOptions = {}): Promise<{ answer: string; steps: AgentStep[] }> {
+    const { value, steps } = await agentLoop(provider, CHAT_SYSTEM_PROMPT, question + '\n\nReply with one JSON object only: {"calls": [...]} or {"answer": "..."}.', tools, options, {
+        finish: (parsed) => (parsed && typeof parsed === 'object' && typeof parsed.answer === 'string' ? parsed.answer.trim() : null),
+        // A model that ignores the protocol and just answers in prose still gets its answer through
+        fallback: (reply) => reply.trim(),
+        finalShape: '{"answer": "..."}',
+    });
+    return { answer: value, steps };
+}
+
+interface LoopShape<T> {
+    /** The final value from a parsed reply, or null when the reply is not a final answer */
+    finish: (parsed: any) => T | null;
+    /** What to make of a reply that is neither a final answer nor tool calls, after one nudge */
+    fallback: (reply: string) => T;
+    finalShape: string;
+}
+
+async function agentLoop<T>(provider: AIProvider, system: string, first: string, tools: RepoTools, options: AgentOptions, shape: LoopShape<T>): Promise<{ value: T; steps: AgentStep[] }> {
     const maxSteps = options.maxSteps ?? 6;
     const maxCalls = options.maxCallsPerStep ?? 4;
-    const system = agentSystemPrompt(provider.getSystemPrompt());
-    const messages: ChatMessage[] = [
-        {
-            role: 'user',
-            content:
-                provider.buildUserPrompt(context) +
-                '\n\nInvestigate with tools if anything needs confirming, then reply with {"findings": [...]}. Reply with one JSON object only.',
-        },
-    ];
+    const messages: ChatMessage[] = [{ role: 'user', content: first }];
     const steps: AgentStep[] = [];
     let nudged = false;
 
@@ -212,15 +264,15 @@ export async function runAgentReview(provider: AIProvider, context: CodeContext,
         const reply = await provider.chat(system, messages);
         const parsed = AIProvider.extractJson(reply);
 
-        const findings = readFindings(parsed);
-        if (findings) return { suggestions: provider.parseSuggestions(JSON.stringify(findings)), steps };
+        const done = shape.finish(parsed);
+        if (done !== null) return { value: done, steps };
 
         const calls = readCalls(parsed);
         if (!calls || calls.length === 0) {
-            if (nudged) return { suggestions: provider.parseSuggestions(reply), steps };
+            if (nudged) return { value: shape.fallback(reply), steps };
             nudged = true;
             messages.push({ role: 'assistant', content: reply });
-            messages.push({ role: 'user', content: 'That was not a valid reply. Reply with exactly one JSON object: {"calls": [...]} or {"findings": [...]}.' });
+            messages.push({ role: 'user', content: `That was not a valid reply. Reply with exactly one JSON object: {"calls": [...]} or ${shape.finalShape}.` });
             continue;
         }
 
@@ -229,7 +281,7 @@ export async function runAgentReview(provider: AIProvider, context: CodeContext,
         }
         messages.push({ role: 'assistant', content: reply });
         if (round >= maxSteps) {
-            messages.push({ role: 'user', content: 'No more tool calls are available. Reply now with {"findings": [...]} based on what you have seen.' });
+            messages.push({ role: 'user', content: `No more tool calls are available. Reply now with ${shape.finalShape} based on what you have seen.` });
             continue;
         }
 
@@ -250,7 +302,7 @@ export async function runAgentReview(provider: AIProvider, context: CodeContext,
         }
         if (calls.length > maxCalls) results.push(`Only the first ${maxCalls} calls were run.`);
         const left = maxSteps - round - 1;
-        results.push(left > 0 ? `${left} tool round(s) left.` : 'That was the last tool round. Reply next with {"findings": [...]}.');
+        results.push(left > 0 ? `${left} tool round(s) left.` : `That was the last tool round. Reply next with ${shape.finalShape}.`);
         messages.push({ role: 'user', content: results.join('\n\n') });
     }
 }
