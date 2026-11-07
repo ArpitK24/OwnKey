@@ -2,11 +2,11 @@
 
 <h1 align="center">OwnKey</h1>
 
-<h3 align="center">AI pull request reviews that run in your own GitHub Actions, on your own model key.</h3>
+<h3 align="center">The pull request reviewer that checks its own work, runs in your CI, and answers to your key.</h3>
 
 <p align="center">
-  The CodeRabbit-style review bot you host yourself: a summary and walkthrough on every pull request, inline comments with one-click fixes, incremental reviews on each push, and <code>@ownkey</code> chat in the thread.<br>
-  No review vendor in the middle and no seat licence. The review runs on your runner and calls the model you chose, from OpenAI, Anthropic, Gemini or Ollama.
+  Every finding is investigated in your repository and double-checked against the real code before it is posted. Summaries, inline one-click fixes, incremental reviews and <code>@ownkey</code> chat, all from your own GitHub Actions.<br>
+  No vendor reading your code, no seats to buy, no app to install on your organization. Any model from OpenAI, Anthropic, Gemini, or Ollama.
 </p>
 
 <p align="center">
@@ -148,7 +148,7 @@ exec ownkey review --staged --fail-on high
 
 ## Why run your own reviewer
 
-Hosted review bots are a GitHub App: your code goes to the vendor, the vendor picks the model, and you pay per developer. OwnKey is the same kind of reviewer turned inside out.
+Hosted review bots are a GitHub App: your code goes to the vendor, the vendor picks the model, and you pay per developer. OwnKey keeps all of that in your hands, and adds what a hosted service can't give you.
 
 | | OwnKey | A hosted review app |
 |---|---|---|
@@ -156,7 +156,7 @@ Hosted review bots are a GitHub App: your code goes to the vendor, the vendor pi
 | **Who sees your code** | The model provider you chose, or no one with a self-hosted Ollama | The vendor, plus the model providers it uses |
 | **Which model** | Any model on your key: GPT, Claude, Gemini, Ollama, or any OpenAI-compatible endpoint | The vendor's choice |
 | **What it costs** | Free and MIT licensed; you pay your provider for tokens | A subscription, usually per developer |
-| **Rules and learnings** | `.ownkey.yml`, versioned in your repository and reviewed like code | Settings in the vendor's dashboard |
+| **Proof before you trust it** | `ownkey bench` scores your model on seeded bugs and clean changes, on your own machine | Published claims |
 | **Leaving** | Delete one workflow file | Uninstall the app from your organization |
 
 ## How a review works

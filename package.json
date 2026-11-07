@@ -1,7 +1,7 @@
 {
   "name": "ownkey",
-  "version": "1.6.1",
-  "description": "Self-hosted AI pull request reviewer: CodeRabbit-style summaries, inline comments with one-click fixes, incremental reviews and @ownkey chat, run in your own GitHub Actions on your own OpenAI, Anthropic, Gemini or Ollama key",
+  "version": "1.6.2",
+  "description": "Self-hosted AI pull request reviewer that double-checks every finding: summaries, inline one-click fixes, incremental reviews and @ownkey chat in your own GitHub Actions, on your own OpenAI, Anthropic, Gemini or Ollama key",
   "main": "dist/index.js",
   "bin": {
     "ownkey": "dist/index.js"
@@ -41,7 +41,6 @@
     "github-action",
     "github-actions",
     "self-hosted",
-    "coderabbit-alternative",
     "byok",
     "ollama",
     "sarif",
