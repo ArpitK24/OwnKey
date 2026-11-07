@@ -16,6 +16,9 @@ export function ollamaHeaders(extra: Record<string, string> = {}): Record<string
     return key ? { ...extra, Authorization: `Bearer ${key}` } : extra;
 }
 
+/** Extra attempts when the model returns an empty reply. */
+export const OLLAMA_EMPTY_RETRIES = 2;
+
 export class OllamaProvider extends AIProvider {
     private baseUrl: string;
 
@@ -42,6 +45,15 @@ export class OllamaProvider extends AIProvider {
     }
 
     async chat(system: string, messages: ChatMessage[]): Promise<string> {
+        // Hosted and reasoning models now and then return an empty reply; ask again before giving up
+        for (let attempt = 0; ; attempt++) {
+            const text = await this.chatOnce(system, messages);
+            if (text.trim() || attempt >= OLLAMA_EMPTY_RETRIES) return text;
+            logger.debug(`Ollama returned an empty reply; retrying (${attempt + 1}/${OLLAMA_EMPTY_RETRIES})`);
+        }
+    }
+
+    private async chatOnce(system: string, messages: ChatMessage[]): Promise<string> {
         // A single turn uses /api/generate (unchanged from earlier versions); a conversation uses /api/chat
         const single = messages.length === 1 && messages[0].role === 'user';
         const url = `${this.baseUrl}${single ? '/api/generate' : '/api/chat'}`;

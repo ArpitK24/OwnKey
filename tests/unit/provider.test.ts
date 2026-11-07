@@ -73,3 +73,26 @@ describe('ollama auth', () => {
         }
     });
 });
+
+import http from 'http';
+import { OllamaProvider as RetryOllama } from '../../src/ai/ollama';
+
+describe('Ollama empty replies', () => {
+    it('asks again when the model returns nothing', async () => {
+        let calls = 0;
+        const server = http.createServer((req, res) => {
+            req.resume();
+            req.on('end', () => {
+                calls++;
+                res.setHeader('content-type', 'application/json');
+                res.end(JSON.stringify({ response: calls < 2 ? '' : '[]' }));
+            });
+        });
+        await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+        const port = (server.address() as any).port;
+        const p = new RetryOllama(undefined, 'm', `http://127.0.0.1:${port}`);
+        expect(await p.chat('s', [{ role: 'user', content: 'u' }])).toBe('[]');
+        expect(calls).toBe(2);
+        server.close();
+    });
+});
