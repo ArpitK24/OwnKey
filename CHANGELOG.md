@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-11-08
+
+### Added
+
+- Pull request bot: `ownkey pr review` and `ownkey pr reply`, run by the GitHub Action.
+  - A summary comment with what the change does, a walkthrough of the changed files grouped by purpose, an estimated review effort, places worth a close look, and a sequence diagram when a flow changes. It is updated in place on every push.
+  - Findings as inline review comments on the exact line. When a fix is a clean replacement of those lines it is a GitHub suggestion, so "Commit suggestion" applies it. Findings GitHub cannot place inline move to the summary.
+  - Incremental reviews: a push is reviewed from the last reviewed commit, and a finding already raised in a thread is not posted again.
+  - `@ownkey` chat in pull request comments and review threads. It investigates the repository with the same read-only tools as a review before answering, and in a thread it uses the thread and the line as context.
+  - Commands: `@ownkey review`, `full review`, `summary`, `pause`, `resume`, `help`.
+  - Drafts and titles with "WIP" are skipped unless asked. On fork pull requests with a read-only token, the review still runs and goes to the job summary and SARIF.
+  - `ownkey pr review --base origin/main` previews the summary and every inline comment locally, with no GitHub access.
+- A double check before findings are reported: a second pass checks each claim against the real code around its line and drops the ones it does not support. `--no-double-check` turns it off.
+- Large reviews fit the model's context: the diff goes in first, and files that do not fit are left to the agent's `read_file`. Files a change adds are marked as new, so the model no longer mistakes them for duplicates.
+- `.ownkey.yml` for per-repository settings, used by `ownkey review` and the bot: review profile (chill or assertive), instructions, path instructions, path filters, severity, file limit, bot features, automatic review rules, and team learnings.
+
+### Changed
+
+- The GitHub Action now reviews pull requests with the bot and answers `@ownkey` on `issue_comment` and `pull_request_review_comment` events. Push events still get a plain review. For Ollama Cloud, `api-key` is passed as `OLLAMA_API_KEY`.
+
 ## [1.5.0] - 2026-11-08
 
 ### Changed

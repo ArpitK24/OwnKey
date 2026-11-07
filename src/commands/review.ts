@@ -14,6 +14,7 @@ import { meetsSeverity, parseSeverity } from '../utils/severity.js';
 import { persistSuggestions } from '../core/persist.js';
 import { describeScope, gitRoot, resolveScope } from '../core/review/git.js';
 import { analyzeChanges, prepareReview } from '../core/review/run.js';
+import { loadRepoConfig } from '../config/repo-config.js';
 import { Finding, anchorLine, sortFindings, toMarkdown, toSarif } from '../core/review/report.js';
 
 const FORMATS = ['text', 'markdown', 'json', 'sarif'] as const;
@@ -31,8 +32,9 @@ export const reviewCommand = new Command('review')
     .option('--sarif-output <file>', 'Also write a SARIF report to this file (GitHub code scanning)')
     .option('--markdown-output <file>', 'Also write a Markdown report to this file (PR comment, job summary)')
     .option('--fail-on <level>', 'Exit with code 1 if any finding is at or above this severity (for CI)')
-    .option('--max-files <number>', 'Maximum changed files to review', '25')
+    .option('--max-files <number>', 'Maximum changed files to review (default 25, or reviews.max_files in .ownkey.yml)')
     .option('--quick', 'Single-pass review without repository tools (faster, cheaper, less context)')
+    .option('--no-double-check', 'Skip the second pass that checks each finding against the code')
     .option('--max-steps <number>', 'Tool rounds the reviewer may use to investigate the repository', '6')
     .action(async (path: string, options) => {
         try {
@@ -40,7 +42,6 @@ export const reviewCommand = new Command('review')
             if (!FORMATS.includes(format)) {
                 throw new Error(`Unknown format "${options.format}". Use one of: ${FORMATS.join(', ')}`);
             }
-            const minSeverity = parseSeverity(options.severity);
             const failOn = parseSeverity(options.failOn);
             const typeFilter: string | undefined = options.type?.toLowerCase();
             const machine = format !== 'text' && !options.output;
@@ -56,10 +57,12 @@ export const reviewCommand = new Command('review')
             }
 
             const root = gitRoot(resolve(path));
+            const repoConfig = loadRepoConfig(root);
+            const minSeverity = parseSeverity(options.severity) ?? repoConfig.reviews.severity;
             const scope = resolveScope(root, { staged: options.staged, base: options.base });
             const scopeLabel = describeScope(scope);
-            const maxFiles = parseInt(options.maxFiles, 10) || 25;
-            const target = await prepareReview(root, scope, maxFiles);
+            const maxFiles = parseInt(options.maxFiles ?? '', 10) || repoConfig.reviews.maxFiles || 25;
+            const target = await prepareReview(root, scope, maxFiles, repoConfig.reviews.pathFilters);
             const { changes, reviewable: files, selected } = target;
 
             if (files.length === 0) {
@@ -85,7 +88,7 @@ export const reviewCommand = new Command('review')
             const maxSteps = Math.max(0, parseInt(options.maxSteps, 10) || 0);
             let analyzed: Awaited<ReturnType<typeof analyzeChanges>>;
             try {
-                analyzed = await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep });
+                analyzed = await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep, repoConfig, doubleCheck: options.quick ? false : options.doubleCheck, onRejected: (f, why) => status.step(`dropped after a second look: ${f.content.slice(0, 70)}${why ? ` (${why})` : ''}`) });
             } finally {
                 status.stop();
             }

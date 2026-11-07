@@ -21,7 +21,7 @@ export function makeHome(): string {
 /** Run the CLI from source (via tsx) with an isolated HOME and no terminal. */
 export function ownkey(
     args: string[],
-    opts: { home: string; cwd?: string; input?: string }
+    opts: { home: string; cwd?: string; input?: string; env?: Record<string, string> }
 ): Promise<{ code: number | null; stdout: string; stderr: string; out: string }> {
     return new Promise((resolvePromise, reject) => {
         const child = spawn(process.execPath, ['--import', TSX, ENTRY, ...args], {
@@ -33,6 +33,7 @@ export function ownkey(
                 OWNKEY_NO_KEYCHAIN: '1',
                 FORCE_COLOR: '0',
                 NO_COLOR: '1',
+                ...opts.env,
             },
         });
         let stdout = '';

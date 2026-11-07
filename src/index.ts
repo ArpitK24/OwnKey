@@ -13,6 +13,7 @@ import { applyCommand } from './commands/apply.js';
 import { undoCommand } from './commands/undo.js';
 import { reviewCommand } from './commands/review.js';
 import { benchCommand } from './commands/bench.js';
+import { prCommand } from './commands/pr.js';
 
 const program = new Command();
 
@@ -35,6 +36,7 @@ program.addCommand(reviewCommand);
 program.addCommand(applyCommand);
 program.addCommand(undoCommand);
 program.addCommand(benchCommand);
+program.addCommand(prCommand);
 
 // Pre-action hook: set up logging and storage.
 // Note: the hook is registered on the root program, so `thisCommand` is always the
