@@ -83,6 +83,8 @@ export interface CodeContext {
     reviewPatch?: string;
     /** Review guidance from .ownkey.yml: profile, instructions, path instructions, learnings */
     guidance?: string;
+    /** Files the change adds: shown in full and as additions in the diff */
+    newFiles?: string[];
 }
 
 export interface ProjectMetadata {

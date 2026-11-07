@@ -34,6 +34,7 @@ export const reviewCommand = new Command('review')
     .option('--fail-on <level>', 'Exit with code 1 if any finding is at or above this severity (for CI)')
     .option('--max-files <number>', 'Maximum changed files to review (default 25, or reviews.max_files in .ownkey.yml)')
     .option('--quick', 'Single-pass review without repository tools (faster, cheaper, less context)')
+    .option('--no-double-check', 'Skip the second pass that checks each finding against the code')
     .option('--max-steps <number>', 'Tool rounds the reviewer may use to investigate the repository', '6')
     .action(async (path: string, options) => {
         try {
@@ -87,7 +88,7 @@ export const reviewCommand = new Command('review')
             const maxSteps = Math.max(0, parseInt(options.maxSteps, 10) || 0);
             let analyzed: Awaited<ReturnType<typeof analyzeChanges>>;
             try {
-                analyzed = await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep, repoConfig });
+                analyzed = await analyzeChanges(root, scope, target, provider, { quick: options.quick, maxSteps, onStep, repoConfig, doubleCheck: options.quick ? false : options.doubleCheck, onRejected: (f, why) => status.step(`dropped after a second look: ${f.content.slice(0, 70)}${why ? ` (${why})` : ''}`) });
             } finally {
                 status.stop();
             }

@@ -55,6 +55,7 @@ const reviewSub = new Command('review')
     .option('--max-files <number>', 'Maximum changed files to review')
     .option('--max-steps <number>', 'Tool rounds the reviewer may use', '6')
     .option('--quick', 'Single-pass review without repository tools')
+    .option('--no-double-check', 'Skip the second pass that checks each finding against the code')
     .option('--sarif-output <file>', 'Also write the findings as SARIF (GitHub code scanning)')
     .option('--json-output <file>', 'Also write the result as JSON')
     .action(async (path: string, options) => {
@@ -82,6 +83,7 @@ const reviewSub = new Command('review')
                 full: options.full,
                 summaryOnly: options.summaryOnly,
                 quick: options.quick,
+                doubleCheck: options.quick ? false : options.doubleCheck,
                 maxSteps: Math.max(0, parseInt(options.maxSteps, 10) || 0),
                 minSeverity: parseSeverity(options.severity),
                 maxFiles: options.maxFiles ? parseInt(options.maxFiles, 10) : undefined,

@@ -110,7 +110,7 @@ Be thorough but practical. Focus on high-impact suggestions.`;
         prompt += `\n## Code Files\n\n`;
 
         for (const file of context.files) {
-            prompt += `### ${file.relativePath}\n\n`;
+            prompt += `### ${file.relativePath}${context.newFiles?.includes(file.relativePath) ? ' (new in this change)' : ''}\n\n`;
             prompt += `\`\`\`${file.extension.slice(1)}\n`;
             prompt += file.content;
             prompt += `\n\`\`\`\n\n`;
@@ -122,6 +122,9 @@ Be thorough but practical. Focus on high-impact suggestions.`;
             prompt += `report problems introduced or touched by these lines, not pre-existing issues elsewhere.\n\n`;
             prompt += `\`\`\`diff\n${context.reviewPatch}\n\`\`\`\n\n`;
             prompt += `Diffs in your suggestions must apply to the full file contents shown above.\n`;
+            if (context.newFiles?.length) {
+                prompt += `Files marked "(new in this change)" appear both in full above and as additions in the diff. That is expected: they are not duplicates.\n`;
+            }
         }
 
         if (context.guidance?.trim()) {

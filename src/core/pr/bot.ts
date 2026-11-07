@@ -75,6 +75,7 @@ export interface PullReviewOptions {
     /** Only refresh the summary and walkthrough */
     summaryOnly?: boolean;
     quick?: boolean;
+    doubleCheck?: boolean;
     maxSteps?: number;
     minSeverity?: Severity;
     maxFiles?: number;
@@ -176,7 +177,7 @@ export async function reviewPull(o: PullReviewOptions): Promise<PullReviewResult
     const reviewJob =
         o.summaryOnly || target.selected.length === 0
             ? Promise.resolve([])
-            : analyzeChanges(root, scope, target, o.provider, { quick: o.quick, maxSteps: o.maxSteps, onStep: o.onStep, repoConfig: config });
+            : analyzeChanges(root, scope, target, o.provider, { quick: o.quick, maxSteps: o.maxSteps, onStep: o.onStep, repoConfig: config, doubleCheck: o.doubleCheck, onRejected: (f, why) => log(`│ dropped after a second look: ${f.filePath}:${f.line} ${f.content.slice(0, 70)}${why ? ` (${why})` : ''}`) });
     const [summary, suggestions] = await Promise.all([summaryJob, reviewJob]);
 
     const minSeverity = o.minSeverity ?? config.reviews.severity ?? 'low';
