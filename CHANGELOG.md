@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2026-11-08
+
+### Changed
+
+- README and package description lead with what sets OwnKey apart: findings investigated and double-checked before they are posted, reviews in your own CI on your own key, a benchmark you run yourself, and the same reviewer in your terminal.
+
 ## [1.6.1] - 2026-11-08
 
 ### Changed
