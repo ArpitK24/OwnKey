@@ -81,6 +81,8 @@ export interface CodeContext {
     totalTokens?: number;
     /** Unified diff under review (ownkey review). When set, the model focuses on these changes. */
     reviewPatch?: string;
+    /** Review guidance from .ownkey.yml: profile, instructions, path instructions, learnings */
+    guidance?: string;
 }
 
 export interface ProjectMetadata {

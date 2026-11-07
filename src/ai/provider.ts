@@ -124,6 +124,10 @@ Be thorough but practical. Focus on high-impact suggestions.`;
             prompt += `Diffs in your suggestions must apply to the full file contents shown above.\n`;
         }
 
+        if (context.guidance?.trim()) {
+            prompt += `\n## Review Guidance\n\n${context.guidance.trim()}\n`;
+        }
+
         prompt += `\nAnalyze the above code and provide suggestions in JSON format.`;
 
         return prompt;
