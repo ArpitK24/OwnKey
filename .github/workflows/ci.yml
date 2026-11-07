@@ -20,3 +20,29 @@ jobs:
       - run: npm run build
       - run: npx tsc --noEmit -p .
       - run: npm test
+
+  # Case-insensitive file systems and Windows paths: install the packed build and run it
+  platforms:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm pack
+      - name: Install the package globally and run it
+        shell: bash
+        run: |
+          npm install -g ./ownkey-*.tgz
+          ownkey --version
+          ownkey --help
+          ownkey review --help
+      - name: Unit tests
+        run: npx vitest run tests/unit

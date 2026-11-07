@@ -116,8 +116,8 @@ Each step is printed as it happens:
 
 ```text
   Investigating the repository before reporting...
-  ↳ search /findOrder\(/
-  ↳ read src/orders.ts
+  │ search /findOrder\(/
+  │ read src/orders.ts
 ```
 
 That's how it catches bugs that only show up across files, such as a lookup that can return `undefined`, a value in cents compared against dollars, or an async loader used without `await`. It also stays quiet about code that is already guarded elsewhere. Files ignored by `.gitignore` or `.ownkeyignore` are never readable. Use `--max-steps <n>` to cap the investigation (default 6 rounds), or `--quick` for the old single-pass review.
@@ -137,21 +137,20 @@ Tab completes commands and their flags, the arrow keys walk your history (kept i
 
 ### Keeper
 
-Keeper, the key with one inspecting eye, keeps you company in the terminal and shows what OwnKey is doing:
+Keeper is OwnKey's mark in the terminal: one small key, `◉━┳┳`, whose round bow shows what OwnKey is doing.
 
 ```text
- ╭─────╮ !
- │  ◎  │    Found 3 issues
- ╰──┬──╯    1 high or critical
-    ├┐
-    ╵
+◉━┳┳  OwnKey 1.5.0  ·  AI code review on your own keys
+◐━┳┳  Investigating the repository before reporting 4.2s · 3 lookups
+◉━┳┳!  2 findings  1 high · 1 medium
+●━┳┳  All clear  no issues in staged changes
 ```
 
-- While a review investigates, Keeper's eye darts between files on a live status line that counts its lookups.
-- When a review finishes, Keeper is alarmed if it found issues, smiles if everything is clear, and shows an × if something went wrong. Back at the session prompt, it keeps that look until your next command.
-- Keeper resizes with your terminal: a full figure from 72 columns, a compact one from 44, a one-line `( ◉ )━┳┳╸` below that, and nothing on very narrow screens. Words never wrap into it, and it redraws when you resize the window.
+- While a review works, the bow turns like a key in a lock, beside the elapsed time and the number of lookups.
+- When it finishes, the bow raises an alarm if it found issues, turns green if all is clear, and shows `×` if something went wrong. The session prompt keeps that look until your next command.
+- It takes four cells on one line and disappears below 24 columns.
 
-Keeper only moves on an interactive terminal. In CI, pipes, and `--format json|sarif|markdown` output it never appears, so logs and reports stay clean. Set `OWNKEY_REDUCED_MOTION=1` to keep Keeper still, or `OWNKEY_NO_MASCOT=1` to hide it.
+Keeper only moves on an interactive terminal. In CI, pipes, and `--format json|sarif|markdown` output it never appears, so logs and reports stay clean. Set `OWNKEY_REDUCED_MOTION=1` to keep it still, or `OWNKEY_NO_MASCOT=1` to hide it.
 
 Outside an interactive terminal (pipes, scripts, CI), or with `OWNKEY_NO_UI=1` set, a bare `ownkey` prints help as before. Every subcommand behaves the same with or without the session.
 

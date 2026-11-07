@@ -1,16 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Box, Text, useStdout } from 'ink';
-import {
-    KEEPER_FPS,
-    KEEPER_ORANGE,
-    keeperAnimates,
-    keeperFrame,
-    keeperSegments,
-    keeperShown,
-    keeperSize,
-    type KeeperMood,
-    type KeeperSize,
-} from './keeper.js';
+import { Text, useStdout } from 'ink';
+import { KEEPER_FPS, keeperAnimates, keeperFits, keeperSegments, keeperShown, type KeeperMood } from './keeper.js';
 
 /** Terminal width and height, kept current as the window is resized. */
 export function useTerminalSize(): { columns: number; rows: number } {
@@ -28,7 +18,7 @@ export function useTerminalSize(): { columns: number; rows: number } {
     return size;
 }
 
-/** A tick counter at Keeper's frame rate, or a still 0 where motion is off. */
+/** A tick counter at the mark's frame rate, or a still 0 where motion is off. */
 export function useKeeperTick(active = true): number {
     const { stdout } = useStdout();
     const [tick, setTick] = useState(0);
@@ -43,42 +33,22 @@ export function useKeeperTick(active = true): number {
 
 export interface KeeperProps {
     mood?: KeeperMood;
-    /** Force a size; by default it follows the terminal width */
-    size?: KeeperSize;
     /** Stop animating (for example once a prompt is submitted), keeping the last frame */
     still?: boolean;
 }
 
-/** Keeper as an Ink element: moves with its mood, resizes with the terminal. */
-export function Keeper({ mood = 'idle', size, still = false }: KeeperProps) {
-    const { columns, rows } = useTerminalSize();
-    const tick = useKeeperTick(!still);
-    if (!keeperShown()) return null;
-    const lines = keeperFrame(mood, size ?? keeperSize(columns, rows), tick);
-    if (!lines.length) return null;
+/** The one-line mark as an Ink element; hidden on very narrow terminals. */
+export function Keeper({ mood = 'idle', still = false }: KeeperProps) {
+    const { columns } = useTerminalSize();
+    const tick = useKeeperTick(!still && (mood === 'thinking' || mood === 'found' || mood === 'idle'));
+    if (!keeperShown() || !keeperFits(columns)) return null;
     return (
-        <Box flexDirection="column" flexShrink={0}>
-            {lines.map((line, i) => (
-                <Text key={i}>
-                    {keeperSegments(line).map((seg, j) =>
-                        seg.part === 'body' ? (
-                            <Text key={j} color={KEEPER_ORANGE}>
-                                {seg.text}
-                            </Text>
-                        ) : seg.part === 'eye' ? (
-                            <Text key={j} bold>
-                                {seg.text}
-                            </Text>
-                        ) : seg.part === 'mark' ? (
-                            <Text key={j} color="red" bold>
-                                {seg.text}
-                            </Text>
-                        ) : (
-                            <Text key={j}>{seg.text}</Text>
-                        )
-                    )}
+        <Text>
+            {keeperSegments(mood, tick).map((seg, i) => (
+                <Text key={i} color={seg.color} bold={seg.part !== 'shaft'}>
+                    {seg.text}
                 </Text>
             ))}
-        </Box>
+        </Text>
     );
 }
