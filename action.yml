@@ -1,5 +1,5 @@
 name: OwnKey Review
-description: AI code review for pull requests on your own model keys. Posts a summary comment and uploads findings to GitHub code scanning.
+description: AI pull request reviews on your own model key. Summary, walkthrough, inline comments with one-click fixes, incremental reviews, and @ownkey chat.
 author: ArpitK24
 branding:
   icon: shield
@@ -10,7 +10,7 @@ inputs:
     description: openai, anthropic, gemini, or ollama
     required: true
   api-key:
-    description: Provider API key (pass a secret). Not needed for ollama.
+    description: Provider API key (pass a secret). For Ollama Cloud, your OLLAMA_API_KEY. Not needed for a local Ollama.
     required: false
     default: ''
   model:
@@ -18,29 +18,33 @@ inputs:
     required: false
     default: ''
   endpoint:
-    description: Ollama server URL, or an OpenAI-compatible base URL with provider openai.
-    required: false
-    default: ''
-  base:
-    description: Ref to review against. Defaults to the pull request's base branch.
+    description: Ollama server URL (https://ollama.com for Ollama Cloud), or an OpenAI-compatible base URL with provider openai.
     required: false
     default: ''
   severity:
-    description: Minimum severity to report (critical, high, medium, low, info).
+    description: Minimum severity to report (critical, high, medium, low, info). Defaults to reviews.severity in .ownkey.yml, else low.
     required: false
-    default: low
+    default: ''
   fail-on:
-    description: Fail the job when a finding is at or above this severity. Empty never fails.
+    description: Fail the job when a new finding is at or above this severity. Empty never fails.
     required: false
     default: ''
   max-files:
-    description: Maximum changed files to review.
+    description: Maximum changed files to review. Defaults to reviews.max_files in .ownkey.yml, else 25.
     required: false
-    default: '25'
+    default: ''
+  max-steps:
+    description: Tool rounds the reviewer may use to investigate the repository.
+    required: false
+    default: '6'
   comment:
-    description: Post or update a summary comment on the pull request.
+    description: Post the review on the pull request. Set to false to only write the job summary and SARIF.
     required: false
     default: 'true'
+  base:
+    description: For push events, the ref to review against (default HEAD~1). Pull requests always review against their base.
+    required: false
+    default: ''
   upload-sarif:
     description: Upload findings to GitHub code scanning (needs security-events write).
     required: false
@@ -52,7 +56,7 @@ inputs:
 
 outputs:
   findings:
-    description: Number of findings reported.
+    description: Number of new findings in this run.
     value: ${{ steps.review.outputs.findings }}
   sarif-file:
     description: Path to the SARIF report.
@@ -79,73 +83,88 @@ runs:
         OK_ENDPOINT: ${{ inputs.endpoint }}
       run: |
         args=(config --provider "$OK_PROVIDER" --no-database --yes)
-        [ -n "$OK_KEY" ] && args+=(--api-key "$OK_KEY")
+        if [ -n "$OK_KEY" ]; then
+          if [ "$OK_PROVIDER" = "ollama" ]; then echo "OLLAMA_API_KEY=$OK_KEY" >> "$GITHUB_ENV"; else args+=(--api-key "$OK_KEY"); fi
+        fi
         [ -n "$OK_MODEL" ] && args+=(--model "$OK_MODEL")
         [ -n "$OK_ENDPOINT" ] && args+=(--endpoint "$OK_ENDPOINT")
         ownkey "${args[@]}"
 
-    - name: Review changes
+    - name: Review the pull request
       id: review
+      if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
       shell: bash
       env:
         OWNKEY_NO_KEYCHAIN: '1'
-        OK_BASE: ${{ inputs.base }}
-        OK_PR_BASE: ${{ github.base_ref }}
+        GITHUB_TOKEN: ${{ github.token }}
         OK_SEVERITY: ${{ inputs.severity }}
         OK_FAIL_ON: ${{ inputs.fail-on }}
         OK_MAX_FILES: ${{ inputs.max-files }}
+        OK_MAX_STEPS: ${{ inputs.max-steps }}
+        OK_COMMENT: ${{ inputs.comment }}
       run: |
-        base="$OK_BASE"
-        if [ -z "$base" ] && [ -n "$OK_PR_BASE" ]; then
-          git fetch --no-tags --depth=200 origin "$OK_PR_BASE" >/dev/null 2>&1 || true
-          base="origin/$OK_PR_BASE"
-        fi
-        [ -z "$base" ] && base="HEAD~1"
         out="$RUNNER_TEMP/ownkey"
         mkdir -p "$out"
-        args=(review --base "$base" --severity "$OK_SEVERITY" --max-files "$OK_MAX_FILES"
-              --format json --output "$out/report.json"
-              --sarif-output "$out/ownkey.sarif" --markdown-output "$out/ownkey.md")
+        args=(pr review --max-steps "$OK_MAX_STEPS" --sarif-output "$out/ownkey.sarif" --json-output "$out/result.json")
+        [ -n "$OK_SEVERITY" ] && args+=(--severity "$OK_SEVERITY")
+        [ -n "$OK_MAX_FILES" ] && args+=(--max-files "$OK_MAX_FILES")
         [ -n "$OK_FAIL_ON" ] && args+=(--fail-on "$OK_FAIL_ON")
+        [ "$OK_COMMENT" != "true" ] && args+=(--dry-run)
         set +e
         ownkey "${args[@]}"
         code=$?
         set -e
         if [ "$code" -ge 2 ]; then exit "$code"; fi
         echo "gate=$code" >> "$GITHUB_OUTPUT"
-        echo "findings=$(node -e "console.log(require('$out/report.json').findings.length)")" >> "$GITHUB_OUTPUT"
+        echo "findings=$(node -e "try{console.log(require('$out/result.json').findings.length)}catch{console.log(0)}")" >> "$GITHUB_OUTPUT"
         echo "sarif=$out/ownkey.sarif" >> "$GITHUB_OUTPUT"
-        echo "markdown=$out/ownkey.md" >> "$GITHUB_OUTPUT"
-        cat "$out/ownkey.md" >> "$GITHUB_STEP_SUMMARY"
 
-    - name: Comment on pull request
-      if: ${{ inputs.comment == 'true' && github.event_name == 'pull_request' }}
+    - name: Review a push
+      id: push
+      if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
       shell: bash
       env:
-        GH_TOKEN: ${{ github.token }}
-        PR: ${{ github.event.pull_request.number }}
-        REPORT: ${{ steps.review.outputs.markdown }}
+        OWNKEY_NO_KEYCHAIN: '1'
+        OK_BASE: ${{ inputs.base }}
+        OK_SEVERITY: ${{ inputs.severity }}
+        OK_FAIL_ON: ${{ inputs.fail-on }}
+        OK_MAX_FILES: ${{ inputs.max-files }}
+        OK_MAX_STEPS: ${{ inputs.max-steps }}
       run: |
-        marker='<!-- ownkey-review -->'
-        { echo "$marker"; cat "$REPORT"; } > "$RUNNER_TEMP/ownkey/comment.md"
-        existing=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate \
-          --jq ".[] | select(.body | startswith(\"$marker\")) | .id" | head -n1)
-        if [ -n "$existing" ]; then
-          gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$existing" -F body=@"$RUNNER_TEMP/ownkey/comment.md" >/dev/null
-        else
-          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/ownkey/comment.md"
-        fi
+        out="$RUNNER_TEMP/ownkey"
+        mkdir -p "$out"
+        args=(review --base "${OK_BASE:-HEAD~1}" --max-steps "$OK_MAX_STEPS" --format json --output "$out/result.json"
+              --sarif-output "$out/ownkey.sarif" --markdown-output "$out/ownkey.md")
+        [ -n "$OK_SEVERITY" ] && args+=(--severity "$OK_SEVERITY")
+        [ -n "$OK_MAX_FILES" ] && args+=(--max-files "$OK_MAX_FILES")
+        [ -n "$OK_FAIL_ON" ] && args+=(--fail-on "$OK_FAIL_ON")
+        set +e
+        ownkey "${args[@]}"
+        code=$?
+        set -e
+        if [ "$code" -ge 2 ]; then exit "$code"; fi
+        cat "$out/ownkey.md" >> "$GITHUB_STEP_SUMMARY"
+        echo "gate=$code" >> "$GITHUB_OUTPUT"
+        echo "sarif=$out/ownkey.sarif" >> "$GITHUB_OUTPUT"
+
+    - name: Answer @ownkey
+      if: ${{ (github.event_name == 'issue_comment' && github.event.issue.pull_request) || github.event_name == 'pull_request_review_comment' }}
+      shell: bash
+      env:
+        OWNKEY_NO_KEYCHAIN: '1'
+        GITHUB_TOKEN: ${{ github.token }}
+      run: ownkey pr reply
 
     - name: Upload to code scanning
-      if: ${{ inputs.upload-sarif == 'true' }}
+      if: ${{ inputs.upload-sarif == 'true' && (steps.review.outputs.sarif != '' || steps.push.outputs.sarif != '') }}
       uses: github/codeql-action/upload-sarif@v3
       with:
-        sarif_file: ${{ steps.review.outputs.sarif }}
+        sarif_file: ${{ steps.review.outputs.sarif || steps.push.outputs.sarif }}
         category: ownkey
 
     - name: Apply severity gate
-      if: ${{ steps.review.outputs.gate == '1' }}
+      if: ${{ steps.review.outputs.gate == '1' || steps.push.outputs.gate == '1' }}
       shell: bash
       run: |
-        echo "::error::OwnKey found issues at or above '${{ inputs.fail-on }}'."
+        echo "::error::OwnKey found new issues at or above '${{ inputs.fail-on }}'."
         exit 1

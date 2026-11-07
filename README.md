@@ -5,7 +5,7 @@
 <h3 align="center">The local-first AI code reviewer that runs on your own keys.</h3>
 
 <p align="center">
-  Review your changes before you commit, gate pull requests in CI, and apply fixes as verified, reversible diffs.<br>
+  Review your changes before you commit, review every pull request with summaries, inline comments, one-click fixes and chat, and apply fixes as verified, reversible diffs.<br>
   OpenAI, Anthropic, Google Gemini, or fully offline with Ollama. No account, no telemetry, no required database.
 </p>
 
@@ -38,13 +38,15 @@ review  ->  apply --verify  ->  undo
  diff        patch + test        restore
 ```
 
-Use `ownkey review` on what you just changed, in a pre-commit hook, or as a GitHub Action on every pull request. Use `ownkey suggest` for a full audit of any folder.
+Use `ownkey review` on what you just changed or in a pre-commit hook. On GitHub, the pull request bot summarizes each pull request, comments inline with one-click fixes, reviews each new push incrementally, and answers `@ownkey` questions. Use `ownkey suggest` for a full audit of any folder.
 
 | | |
 |---|---|
 | **Bring your own key** | Use your existing OpenAI, Anthropic, or Gemini account, or any OpenAI-compatible endpoint. You pay your provider directly; OwnKey adds nothing in between. |
 | **Fully offline option** | Point OwnKey at a local Ollama server and no code leaves your machine. |
 | **Reviews what changed** | `review` looks at staged changes, uncommitted work, or a branch against its base, and reports only on those lines. |
+| **Pull request bot** | A summary and walkthrough, inline comments with GitHub suggestions, incremental reviews, and `@ownkey` chat, all from a GitHub Action on your key. |
+| **Tuned per repository** | `.ownkey.yml` sets the review profile, instructions per path, filters, and what your team taught the reviewer. |
 | **Built for CI** | SARIF for GitHub code scanning, Markdown for PR comments, JSON for tooling, and `--fail-on` exit codes for gating. |
 | **Verified fixes** | `apply --verify "npm test"` runs your checks after each fix and reverts it automatically if they fail. |
 | **Safe by default** | Each apply creates a backup first. `undo` restores modified files and removes files the apply created. |
@@ -165,6 +167,8 @@ Outside an interactive terminal (pipes, scripts, CI), or with `OWNKEY_NO_UI=1` s
 | `ownkey scan [path]` | List the files OwnKey would analyze, honoring `.gitignore` and `.ownkeyignore`. |
 | `ownkey apply [id]` | Apply one suggestion, or all pending ones with `--all`, optionally verified. |
 | `ownkey undo [backup-id]` | Restore files from a backup created by `apply`. |
+| `ownkey pr review` | Review a pull request: summary, walkthrough, inline comments. Add `--base origin/main` to preview locally. |
+| `ownkey pr reply` | Answer an `@ownkey` comment (run by the GitHub Action). |
 | `ownkey bench` | Measure review quality on seeded-bug cases with your model. |
 
 <details>
@@ -304,22 +308,37 @@ ownkey config --provider openai \
   --model anthropic/claude-sonnet-4.5
 ```
 
-## GitHub Action
+## Pull request bot
 
-Review every pull request, post a summary comment, and surface findings in the Security tab.
+OwnKey reviews pull requests the way a hosted review bot does, on your own model key and inside your own CI:
+
+- **Summary and walkthrough.** One comment at the top of the pull request says what the change does, groups the changed files by purpose, estimates the review effort, points at the places worth a close look, and draws a sequence diagram when a flow between components changes. It is updated in place on every push.
+- **Inline comments with one-click fixes.** Each finding is a review comment on the exact line, with the reasoning. When the fix is a clean replacement of those lines, it comes as a GitHub suggestion, so "Commit suggestion" applies it.
+- **Incremental reviews.** On a new push, only the commits since the last review are reviewed, and a problem already raised in a thread is never posted twice.
+- **Chat.** Mention `@ownkey` in a comment or a review thread to ask about the code. It reads the repository before it answers, and in a thread it answers about that line.
+- **Commands.** `@ownkey review`, `@ownkey full review`, `@ownkey summary`, `@ownkey pause`, `@ownkey resume`, `@ownkey help`.
+- **Repository rules and learnings** in `.ownkey.yml` (see the next section).
 
 ```yaml
 # .github/workflows/ownkey.yml
 name: OwnKey review
-on: pull_request
+on:
+  pull_request:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
   security-events: write
 
 jobs:
   review:
+    # Comments on issues (not pull requests) need nothing from OwnKey
+    if: github.event_name != 'issue_comment' || github.event.issue.pull_request
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -329,21 +348,68 @@ jobs:
         with:
           provider: anthropic
           api-key: ${{ secrets.ANTHROPIC_API_KEY }}
-          fail-on: high
 ```
+
+With Ollama Cloud, use `provider: ollama`, `endpoint: https://ollama.com`, `model: gpt-oss:120b`, and your Ollama key as `api-key`.
+
+Preview the whole thing locally before you push, with no GitHub access at all:
+
+```bash
+ownkey pr review --base origin/main
+```
+
+This prints the summary comment and every inline comment exactly as they would be posted.
 
 | Input | Default | Description |
 |---|---|---|
 | `provider` | required | `openai`, `anthropic`, `gemini`, or `ollama`. |
-| `api-key` | | Provider key, from a repository secret. |
+| `api-key` | | Provider key, from a repository secret. For Ollama Cloud, your Ollama key. |
 | `model` | provider default | Any model your key can access. |
-| `endpoint` | | Ollama URL or OpenAI-compatible base URL. |
-| `base` | PR base branch | Ref to review against. |
-| `severity` | `low` | Minimum severity to report. |
-| `fail-on` | | Fail the job at or above this severity. |
-| `comment` | `true` | Post or update one summary comment on the PR. |
+| `endpoint` | | Ollama URL (`https://ollama.com` for Ollama Cloud) or an OpenAI-compatible base URL. |
+| `severity` | `.ownkey.yml`, else `low` | Minimum severity to report. |
+| `fail-on` | | Fail the job when a new finding is at or above this severity. |
+| `max-files` | `.ownkey.yml`, else `25` | Maximum changed files to review per run. |
+| `max-steps` | `6` | Tool rounds the reviewer may use to investigate. |
+| `comment` | `true` | Post on the pull request. With `false`, results go only to the job summary and SARIF. |
 | `upload-sarif` | `true` | Upload findings to GitHub code scanning. |
+| `base` | `HEAD~1` | For `push` events only: the ref to review against. |
 | `version` | `latest` | OwnKey version from npm. |
+
+On a pull request from a fork, GitHub gives the workflow a read-only token, so OwnKey cannot comment. The review still runs and its findings go to the job summary and SARIF.
+
+### .ownkey.yml
+
+Put `.ownkey.yml` at the repository root to tune reviews for your codebase. Every key is optional. It applies to `ownkey review` in your terminal and to the pull request bot.
+
+```yaml
+reviews:
+  profile: chill            # chill: bugs and security only. assertive: also style, tests, refactors.
+  severity: low             # minimum severity to report
+  max_files: 25
+  instructions: |
+    Money is stored in integer cents.
+  path_instructions:
+    - path: "src/api/**"
+      instructions: Every handler must check the session before touching the database.
+    - path: "**/*.test.ts"
+      instructions: Only flag tests that cannot fail.
+  path_filters:             # a leading ! excludes
+    - "!dist/**"
+    - "!**/*.generated.ts"
+  summary: true
+  walkthrough: true
+  inline_comments: true
+  incremental: true
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords: ["WIP", "DO NOT REVIEW"]
+    base_branches: []       # empty reviews pull requests into any branch
+
+learnings:                  # what your team taught the reviewer
+  - We validate request bodies with zod at the route layer; do not flag missing manual checks there.
+  - Logging with console.error is intended in scripts/.
+```
 
 ### Pre-commit hook
 
