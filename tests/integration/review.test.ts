@@ -67,7 +67,7 @@ describe('ownkey review', () => {
         expect(report.scope).toBe('uncommitted changes');
         expect(report.findings).toHaveLength(1);
         expect(report.findings[0]).toMatchObject({ filePath: 'src/total.js', severity: 'high', line: 3 });
-        const prompt = mock.state.requests.at(-1).prompt as string;
+        const prompt = mock.state.requests.find((q: any) => String(q.prompt ?? '').includes('Changes Under Review')).prompt as string;
         expect(prompt).toContain('Changes Under Review');
         expect(prompt).not.toContain('untouched.js');
     });
@@ -126,7 +126,9 @@ describe('ownkey review', () => {
         expect(r.code).toBe(0);
         expect(r.stderr).toContain('│ search /i <= items/');
         expect(r.stderr).toContain('│ read src/untouched.js');
-        expect(mock.state.requests).toHaveLength(2);
+        // Tool round, final answer, then the double check of the findings
+        expect(mock.state.requests).toHaveLength(3);
+        expect(mock.state.requests[2].system).toContain('double-checking');
         expect(mock.state.requests[1].url).toBe('/api/chat');
         const toolTurn = mock.state.requests[1].messages.at(-1).content as string;
         expect(toolTurn).toContain('src/total.js:3:');

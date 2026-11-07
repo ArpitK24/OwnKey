@@ -245,6 +245,20 @@ describe('ownkey pr', () => {
         expect(gh.state.issueComments[0].body).not.toContain('### Summary');
     });
 
+    it('drops findings the double check does not confirm, unless told not to check', async () => {
+        model.state.findings = [
+            { type: 'bug', severity: 'high', content: 'HALLUCINATED syntax error', filePath: 'src/db.js', line: 2, rationale: '', diff: '' },
+            { type: 'bug', severity: 'high', content: 'Real problem', filePath: 'src/db.js', line: 1, rationale: '', diff: '' },
+        ];
+        const checked = await ownkey(['pr', 'review', '--base', 'main'], { home, cwd: repo, env: { ...env, GITHUB_TOKEN: '' } });
+        expect(checked.code, checked.out).toBe(0);
+        expect(checked.stdout).toContain('Real problem');
+        expect(checked.stdout).not.toContain('HALLUCINATED');
+        expect(checked.stderr).toContain('dropped after a second look');
+        const raw = await ownkey(['pr', 'review', '--base', 'main', '--no-double-check'], { home, cwd: repo, env: { ...env, GITHUB_TOKEN: '' } });
+        expect(raw.stdout).toContain('HALLUCINATED');
+    });
+
     it('explains a missing token and a missing pull request', async () => {
         const noToken = await ownkey(['pr', 'review', '--pr', '7', '--repo', 'o/r'], { home, cwd: repo, env: { ...env, GITHUB_TOKEN: '', GH_TOKEN: '' } });
         expect(noToken.code).toBe(2);

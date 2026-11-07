@@ -26,7 +26,16 @@ export async function startMockReviewer() {
             state.prompts.push(all);
             const turns = (body.messages ?? []).length;
             let text: string;
-            if (all.includes('overview of a pull request')) {
+            if (all.includes('double-checking another reviewer')) {
+                // Reject every finding whose claim says it is made up
+                const prompt = String(body.prompt ?? body.messages?.at(-1)?.content ?? '');
+                const verdicts = [...prompt.matchAll(/## Finding (\d+)\n[^\n]*\nClaim: ([^\n]*)/g)].map((m) => ({
+                    index: Number(m[1]),
+                    verdict: m[2].includes('HALLUCINATED') ? 'rejected' : 'confirmed',
+                    reason: 'checked',
+                }));
+                text = JSON.stringify({ verdicts });
+            } else if (all.includes('overview of a pull request')) {
                 if (state.failSummary) {
                     res.statusCode = 500;
                     return res.end('{"error":"boom"}');

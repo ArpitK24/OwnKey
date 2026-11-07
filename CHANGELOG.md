@@ -14,6 +14,8 @@ All notable changes to this project will be documented in this file.
   - Commands: `@ownkey review`, `full review`, `summary`, `pause`, `resume`, `help`.
   - Drafts and titles with "WIP" are skipped unless asked. On fork pull requests with a read-only token, the review still runs and goes to the job summary and SARIF.
   - `ownkey pr review --base origin/main` previews the summary and every inline comment locally, with no GitHub access.
+- A double check before findings are reported: a second pass checks each claim against the real code around its line and drops the ones it does not support. `--no-double-check` turns it off.
+- Large reviews fit the model's context: the diff goes in first, and files that do not fit are left to the agent's `read_file`. Files a change adds are marked as new, so the model no longer mistakes them for duplicates.
 - `.ownkey.yml` for per-repository settings, used by `ownkey review` and the bot: review profile (chill or assertive), instructions, path instructions, path filters, severity, file limit, bot features, automatic review rules, and team learnings.
 
 ### Changed

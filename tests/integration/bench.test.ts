@@ -49,7 +49,9 @@ describe('ownkey bench', () => {
         expect(byId['clean-refactor'].noise).toBe(1);
         expect(report.summary).toMatchObject({ bugCases: 2, caught: 1, controlsFlagged: 1 });
         expect(report.model).toBe('ollama/mock-coder');
-        expect(mock.state.requests.length).toBe(3);
+        // One review per case, plus a double check for each case with findings
+        expect(mock.state.requests.length).toBe(5);
+        expect(mock.state.requests.filter((q: any) => String(q.system ?? '').includes('double-checking'))).toHaveLength(2);
         // The model sees the planted change as the review focus
         expect(mock.state.requests[0].prompt).toContain('i <= items.length');
     });

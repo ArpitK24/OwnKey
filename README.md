@@ -124,6 +124,8 @@ Each step is printed as it happens:
 
 That's how it catches bugs that only show up across files, such as a lookup that can return `undefined`, a value in cents compared against dollars, or an async loader used without `await`. It also stays quiet about code that is already guarded elsewhere. Files ignored by `.gitignore` or `.ownkeyignore` are never readable. Use `--max-steps <n>` to cap the investigation (default 6 rounds), or `--quick` for the old single-pass review.
 
+Before anything is reported, a second, skeptical pass checks each finding against the real code around its line and drops the ones the code does not support, such as a syntax error that is not there. Turn it off with `--no-double-check`. Large changes are fitted to the model's context: the diff always goes in, and files that do not fit are left for the agent to read with its tools.
+
 ## Interactive session
 
 Run `ownkey` with no arguments in any project folder and it opens a session for that folder. The header shows the repository, branch, how many files changed, and which model is reviewing. Then type any command without the `ownkey` prefix:
