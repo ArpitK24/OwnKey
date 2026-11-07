@@ -1,7 +1,7 @@
 {
   "name": "ownkey",
-  "version": "1.6.0",
-  "description": "Local-first AI code reviewer CLI: review git changes, gate PRs with SARIF, and apply verified fixes using your own OpenAI, Anthropic, Gemini, or Ollama keys",
+  "version": "1.6.1",
+  "description": "Self-hosted AI pull request reviewer: CodeRabbit-style summaries, inline comments with one-click fixes, incremental reviews and @ownkey chat, run in your own GitHub Actions on your own OpenAI, Anthropic, Gemini or Ollama key",
   "main": "dist/index.js",
   "bin": {
     "ownkey": "dist/index.js"
@@ -34,21 +34,21 @@
   },
   "homepage": "https://github.com/ArpitK24/ownkey#readme",
   "keywords": [
-    "ai",
-    "coding-agent",
-    "cli",
-    "code-analysis",
-    "refactoring",
-    "bug-detection",
-    "llm",
-    "developer-tools",
     "code-review",
     "ai-code-review",
-    "sarif",
+    "pull-request",
+    "pr-review",
     "github-action",
-    "pre-commit",
+    "github-actions",
+    "self-hosted",
+    "coderabbit-alternative",
     "byok",
-    "ollama"
+    "ollama",
+    "sarif",
+    "pre-commit",
+    "llm",
+    "cli",
+    "developer-tools"
   ],
   "author": "OwnKey Team",
   "license": "MIT",

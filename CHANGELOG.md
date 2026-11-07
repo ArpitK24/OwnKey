@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2026-11-08
+
+### Changed
+
+- The README now leads with the pull request bot: a real review screenshot, a two-minute setup, and how a self-hosted reviewer compares with a hosted review app. The terminal workflow follows as "In your terminal".
+- The package description and keywords describe OwnKey as a self-hosted pull request reviewer.
+
 ## [1.6.0] - 2026-11-08
 
 ### Added
