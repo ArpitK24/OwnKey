@@ -124,8 +124,8 @@ describe('ownkey review', () => {
         ];
         const r = await ownkey(['review', '--format', 'json'], { home, cwd: repo });
         expect(r.code).toBe(0);
-        expect(r.stderr).toContain('↳ search /i <= items/');
-        expect(r.stderr).toContain('↳ read src/untouched.js');
+        expect(r.stderr).toContain('│ search /i <= items/');
+        expect(r.stderr).toContain('│ read src/untouched.js');
         expect(mock.state.requests).toHaveLength(2);
         expect(mock.state.requests[1].url).toBe('/api/chat');
         const toolTurn = mock.state.requests[1].messages.at(-1).content as string;

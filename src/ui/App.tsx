@@ -3,7 +3,7 @@ import { Box, Text, useApp, useInput } from 'ink';
 import { applySuggestion, suggest, type CommandInfo } from './complete.js';
 import type { SessionInfo } from './context.js';
 import { Keeper, useTerminalSize } from './keeper-view.js';
-import { KEEPER_BREAKPOINTS, keeperShown, keeperSize, type KeeperMood } from './keeper.js';
+import { keeperFits, keeperShown, type KeeperMood } from './keeper.js';
 
 export interface PromptProps {
     info: SessionInfo;
@@ -20,63 +20,41 @@ export interface PromptProps {
 const ORANGE = '#ff5a1f';
 
 export function Banner({ version, still = false }: { version: string; still?: boolean }) {
-    const { columns, rows } = useTerminalSize();
-    const size = keeperShown() ? keeperSize(columns, rows) : 'none';
-    const title = (
-        <Text>
-            <Text color={ORANGE} bold>
-                OwnKey
-            </Text>
-            <Text dimColor> {version}</Text>
-        </Text>
-    );
-    const tagline = <Text>Local-first AI code review on your own keys.</Text>;
-    const hint = <Text dimColor>Type any command without the ownkey prefix. Tab completes, ↑↓ history, help lists everything.</Text>;
-
-    if (size === 'full' || size === 'compact') {
-        return (
-            <Box flexDirection="row" marginBottom={1}>
-                <Keeper size={size} still={still} />
-                <Box flexDirection="column" marginLeft={2} justifyContent="center" flexShrink={1}>
-                    {title}
-                    {tagline}
-                    <Text> </Text>
-                    {hint}
-                </Box>
-            </Box>
-        );
-    }
+    const { columns } = useTerminalSize();
+    const mark = keeperShown() && keeperFits(columns);
     return (
-        <Box borderStyle="round" borderColor={ORANGE} paddingX={1} flexDirection="column" marginBottom={1}>
-            <Box>
-                {size === 'inline' ? (
-                    <Box marginRight={1}>
-                        <Keeper size="inline" still={still} />
-                    </Box>
-                ) : null}
-                {title}
-            </Box>
-            {tagline}
-            {hint}
+        <Box flexDirection="column" marginBottom={1}>
+            <Text wrap="truncate-end">
+                {mark ? <Keeper still={still} /> : null}
+                {mark ? '  ' : ''}
+                <Text color={ORANGE} bold>
+                    OwnKey
+                </Text>
+                <Text dimColor> {version}</Text>
+                {columns >= 56 ? <Text dimColor>  ·  </Text> : null}
+                {columns >= 56 ? <Text>AI code review on your own keys</Text> : null}
+            </Text>
+            <Text dimColor wrap="truncate-end">
+                {mark ? '      ' : ''}Type a command without the ownkey prefix. Try review, or help for everything.
+            </Text>
         </Box>
     );
 }
 
 export function Header({ info, mood = 'idle', keeper = true }: { info: SessionInfo; mood?: KeeperMood; keeper?: boolean }) {
-    const { columns } = useTerminalSize();
     const where = [info.folder, info.branch, info.changed === undefined ? undefined : info.changed === 0 ? 'clean' : `${info.changed} changed`]
         .filter(Boolean)
         .join(' · ');
     return (
         <Box flexDirection="row">
-            {keeper && keeperShown() && columns >= KEEPER_BREAKPOINTS.compact ? (
-                <Box marginRight={1}>
-                    <Keeper size="inline" mood={mood} />
+            {keeper ? (
+                <Box marginRight={2}>
+                    <Keeper mood={mood} />
                 </Box>
             ) : null}
-            <Text>
+            <Text wrap="truncate-end">
                 <Text bold>{where}</Text>
-                <Text dimColor>  ·  </Text>
+                <Text dimColor>  │  </Text>
                 {info.provider ? (
                     <Text color="cyan">
                         {info.provider} / {info.model}

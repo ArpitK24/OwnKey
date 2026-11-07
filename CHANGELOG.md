@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-11-08
+
+### Changed
+
+- New terminal look. Keeper is now a one-line mark, `◉━┳┳`, instead of a multi-line figure. Its bow turns while a review works and shows the outcome when it is done (an alarm for findings, green for all clear, `×` for an error).
+- The session banner is two lines, and the header separates the repository from the model.
+- `ownkey review` output is grouped by file. Each finding has a severity badge, its line, a code frame around the flagged line, the reasoning, and the exact `ownkey apply` command for its fix. A closing summary shows counts by severity, the elapsed time, the number of lookups, and the model.
+- The live status line shows elapsed time beside the lookup count.
+
+### Fixed
+
+- CI now also runs on Windows and macOS, which would have caught the 1.4.0 case collision.
+
 ## [1.4.1] - 2026-10-24
 
 ### Fixed
